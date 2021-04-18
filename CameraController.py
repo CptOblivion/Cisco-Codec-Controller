@@ -78,12 +78,14 @@ class CameraController():
         CameraController.current=self
         
         for arg in sys.argv:
-            if (arg=='debugCam'):
+            if (arg=='DebugCam'):
                 debug.forceCameraConnection=True
                 print('forcing debug cameras on')
-            elif (arg=='verbose'):
+            elif (arg=='Verbose'):
                 debug.verbosePrints=True
                 debug.print('verbose printing on')
+            elif (arg=='DummySSH'):
+                DummySSH.UseDummy=True
 
         self.init = False
 
@@ -903,17 +905,22 @@ class CameraController():
             Settings.config['Startup']['PASSWORD'] = PasswordField.get()
 
             Settings.SaveConfig()
-            print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
-            self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'], username=Settings.config['Startup']['USERNAME'], password=Settings.config['Startup']['PASSWORD'])
-            self.shell = self.ssh.invoke_shell()
-            while not (self.shell.recv_ready()):
-                    time.sleep(1)
-            out = self.shell.recv(9999)
-            print(out.decode('ascii'))
-            #TODO: handle connection refused: wrong IP address, username/password incorrect
+            if (not DummySSH.UseDummy):
+                print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
 
-            #TODO: some sort of check to see if we're connected to the right device
-            #   look for: 'Welcome to\r\n Cisco Codec Release' and 'Login successful'
+
+                self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'], username=Settings.config['Startup']['USERNAME'], password=Settings.config['Startup']['PASSWORD'])
+                self.shell = self.ssh.invoke_shell()
+                while not (self.shell.recv_ready()):
+                        time.sleep(1)
+                out = self.shell.recv(9999)
+                print(out.decode('ascii'))
+                #TODO: handle connection refused: wrong IP address, username/password incorrect
+
+                #TODO: some sort of check to see if we're connected to the right device
+                #   look for: 'Welcome to\r\n Cisco Codec Release' and 'Login successful'
+            else:
+                self.shell=DummySSH()
 
             StartFrame.destroy()
             self.PopulateButtons()
@@ -1323,7 +1330,7 @@ class CameraController():
 
 
                         elif (StartPhraseCamera in ResponseLine): #!!!!!!!!!!!!! Make sure this elif is always the last in line !!!!!!!!!!!!
-                            #(it'll catch any command that includes the word 'camera')
+                            #(it'll catch any remaining command that includes the word 'camera')
                             sIndex = ResponseLine.rfind(StartPhraseCamera)
                             if (sIndex > -1):
                                 NextPhrase = ' Connected: '
@@ -2231,6 +2238,47 @@ class camera():
 class configPanel():
     #basically-empty class to drop variables in to conveniently contain access to config panel elements for access between classes
     None
+
+class DummySSH():
+    UseDummy=False
+    dummyPresetData=('* PresetListResult Preset 1 CameraId: 1\n'
+                    '* PresetListResult Preset 1 Name: "Fake_preset"\n'
+                    '* PresetListResult Preset 1 PresetId: 1\n'
+                    '* PresetListResult Preset 2 CameraId: 1\n'
+                    '* PresetListResult Preset 2 Name: "Not_A_Real_Preset"\n'
+                    '* PresetListResult Preset 2 PresetId: 2\n'
+                    '* PresetListResult Preset 3 CameraId: 2\n'
+                    '* PresetListResult Preset 3 Name: "Don\'t_Believe_this_Preset"\n'
+                    '* PresetListResult Preset 3 PresetId: 3\n'
+                    '* PresetListResult Preset 4 CameraId: 3\n'
+                    '* PresetListResult Preset 4 Name: "Definitely_Real_Preset"\n'
+                    '* PresetListResult Preset 4 PresetId: 4\n')
+    def __init__(self):
+
+        #populate the initial response with a handful of things to get us started
+        self.responseQueue = ('* Camera 1 Connected: True\n'
+                              '* Camera 2 Connected: True\n'
+                              '* Camera 3 Connected: True\n'
+                              ) + DummySSH.dummyPresetData
+        for i in range(3):
+            self.responseQueue += ('* Camera ' + str(i+1) + ' Position Focus: 4500\n'
+                                '* Camera ' + str(i+1) + ' Position Zoom: 0\n'
+                                '* Camera ' + str(i+1) + ' Position Pan: 400\n'
+                                '* Camera ' + str(i+1) + ' Position Tilt: 60\n'
+                                   )
+    def recv_ready(self):
+        if (self.responseQueue is not None): return True
+        return False
+    def recv(self, amount):
+        response=self.responseQueue.encode('ASCII')
+        self.responseQueue = None
+        return response
+    def send(self, message):
+        #TODO: resend all the preset list result stuff on request
+        #TODO: 
+        None
+
+
 
 
 #start the actual program

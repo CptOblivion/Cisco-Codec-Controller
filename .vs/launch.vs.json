@@ -1,0 +1,18 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "python",
+      "interpreter": "(default)",
+      "interpreterArguments": "",
+      "scriptArguments": "DummySSH",
+      "env": {},
+      "nativeDebug": false,
+      "webBrowserUrl": "",
+      "project": "CameraController.py",
+      "projectTarget": "",
+      "name": "CameraController.py"
+    }
+  ]
+}
