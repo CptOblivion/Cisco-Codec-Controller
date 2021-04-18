@@ -1,0 +1,167 @@
+Version 0.WIP:
+	UI:
+		#adding toggle to settings to reduce codec prints#
+	Backend:
+		moved ini save stuff to its own class, collected all the defaults into one place
+	
+Version 0.46.2:
+	Bugfix: Preset overwrite had some extra quotes in it
+Version 0.46.1:
+	UI:
+		scroll wheel now works in scrollable panels (might be windows-only, need testing)
+Version 0.46:
+	UI:
+		reworked preset renaming, so it happens automatically after text entry
+	Functionality:
+		preset name field now rejects changes that will cause an invalid name to be entered (space entered)
+	Bugfixes:
+		preset filtering had an old reference to a variable that changed location after a refactor
+Version 0.45:
+	UI:
+		opening the settings menu disables the main interface
+	Functionality:
+		bindable added for camera presets (stored by name)
+	Bugfixes:
+		Polling for gamma values wasn't properly implemented
+		in bindings, threshold values of 0 were treated as None
+
+Version 0.44:
+	UI:
+		icons added for camera selection and directional buttons
+	Functionality:
+		ini change: analog bindings (midi CC, controller axis) now have an extra entry for threshold. This breaks compatibility with previous ini files.
+	Bugfixes:
+		Can no longer open multiple settings menus
+	Backend:
+		midi CC bindings now store a dictionary that can contain a reference to any device and channel, to track the previous state of CC commands if the binding is mapped to "any" for either of those inputs.
+		camera class, to store data about the state of each camera separately
+		reworked camera selecting, to be contained mostly within camera class
+
+Version 0.43:
+	UI:
+		input dropdowns are now filtered by input type (EG analog commands can only be assigned analog inputs, certain commands can take either analog or button)
+		collapsible categories added to bindings screen
+		Manual/auto toggle in config screen are now checkboxes for more clarity
+		bindings moved to categories:
+			move camera digital (all directions)
+			select camera (1-7)
+	Functionality:
+		Controller support
+		Gamma added to camera configuration
+		"Listen for inputs" button now ignores inputs from invalid input types
+		Bindings added: ramp zoom, ramp focus, debugOutputValue, select camera 1-7
+		ini now includes version number in the name
+
+	Backend changes:
+		bindings in ini (and in program) are no longer stored by an address (EG used to be "button.move_left_up", now it's just "move_left_up")
+		Bindables.index entries are now a tuple: (command, ValidInputType)
+			one of 'button', 'analog', or 'both'
+		Gradual move towards python standards: string quotes are now consistent (enclosed in ', unless the string contains a ' then use ")
+		Categories can be added to bindables.index, to sort the bindings screen.
+	Bugfixes:
+		pre-refactor old variable name in startup code caused crash when no ini was present
+		
+Version 0.42:
+	Functionality:
+		added direct pan, tilt, and zoom bindings
+		direct controls now wait briefly afdter changing (100ms) before sending a command, to make sure the input has stopped changing
+	Backend Changes:
+		Refactoring code to be more object-based
+		controlDirect class, to track changes on direct controls and handle waiting to see if more changes come along before sending
+		deltaTime moved to its own class
+
+Version 0.41:
+	UI:
+		in control bindings, device type and control type are now selectable
+	Functionality:
+		in control bindings, listen for input button now works
+	Bugfixes:
+		many bindable commands were allowed to run on the start screen, before an SSH session had been established.
+	Backend Changes:
+		in control bindings, midi devices are stored by name now, instead of by index
+		default bindings no longer include any midi devices
+		
+
+Version 0.40:
+	UI:
+		Added settings window
+	Functionality:
+		MIDI input added (cursory)
+		Ramp no longer flags pan variables (temporary)
+	Bugfixes:
+		Slightly-wrong formula for determining unused space during window scaling
+		
+	Backend Changes:
+		Inputs polled every frame, any new inputs are checked for matches with bindings stored as either float or button bindings sorted by device
+		If the binding matches, the function is called and passed the value (float value for float, button state (pressed or released) for button)
+		ControlBindPanel: class to connect a function with all of its keybinds, and build a UI for setup, and apply changes/save to the ini
+		bindingFrame: class to contain the details of an individual keybind, build a UI, and helper functions for saving
+		bindables class: contains all of the bindable functions, with a dictionary to give them easily addressible as strings
+		'Bindings' entry added to save file, in 'Startup'
+
+		
+Version 0.31
+	UI:
+		Toggle button clarity added (side-by-side buttons that are alternately disabled)
+		config panel clarity added (dividers in sections)
+		Made presets panel scrollable
+		Made custom commands panel scrollable
+		UI attempts to resize frames so if there's extra space, lists which are overflowing (scrollbar visible) get that space first
+	Functionality:
+		
+	Bugfixes:
+		renaming a preset wasn't updating the non-text-entry label contents for its button
+		
+	Backend Changes:
+		Added Scrollframe class
+		Top-level window now uses Grid manager, allowing for use of cell weights to better scale internal frames based on contents while resizing window
+		
+
+Version 0.30
+	UI:
+		Presets panel added
+	Functionality:
+		Presets:
+			Presets can be recalled or added, and by unlocking extra controls they can be renamed, replaced, or deleted.
+			Currently a preset is locked to the camera it was originally added to (the camera that was active when the save preset button was pressed)
+			Overwrite will save the current position of the camera that preset is locked to, regardless of which camera is currently being controlled
+			Presets can all be shown, or filtered to only show presets for the current camera.
+	Bugfixes:
+		
+	Backend Changes:
+		ListPresetsCamera function added, to request presets for the current camera
+		CameraPresetPanel class added to contain UI elements for each preset
+		Preset feedback handling implemented
+		Feedback handling cleaned up
+
+Version 0.23 (first version since this changelog was started):
+	UI:
+		background colors are no longer used for toggle buttons or camera list (mac compatibility)
+			Camera selection buttons now use an X for no camera, and underscores to indicate the selected camera (EG _1_)
+		auto/manual buttons are now each a single toggle button
+		Slightly rearranged config panel (auto/manual buttons are now inline with corresponding sliders)
+		added refresh buttons to status panel and camera selector
+
+	Functionality:
+		If the selected camera is discovered to be no longer connected, program now seeks for the lowest-numbered connected camera
+			(No error handling for no camera found, other than a console print)
+		echo responses are now discarded before checking for feedback
+		read auto/manual status updates of focus, brightness, and whitebalance, assign to corresponding config button
+		Config panel now periodically (once every five seconds) asks for camera focus/brightness/whitebalance values and modes while it's open
+		
+	Bugfixes:
+		list of user-saved commands used wrong variable, just listed last entry in prefab several times instead
+		delete buttons in user-saved commands stored their original index at creation, rather than finding their current index
+
+	Backend changes:
+		Feedback is parsed per-line
+		Added carrot to codec response command line prints, for clarity vs what's just being printed by the program
+		ToggleButton class added
+		ToggleFrame now can call a custom function when it opens/closes
+		Camera connection status now actually stored in a list (with an ignored first index, because the camera indices start at 1)
+		VerbosePrints function added, for easy toggling of extra console printing feedback (EG confirmations that program successfully parsed a command)
+		DeltaTime property and handling added
+		GetCameraModes function added to request camera config status updates
+		rearranged UI code to be more structured (using hacky "if True:" statements to allow indentation of code blocks)
+		Added more control over button position in ToggleFrame
+		added option for ToggleFrame to keep its title shown
