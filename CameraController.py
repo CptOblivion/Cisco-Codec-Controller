@@ -425,12 +425,12 @@ class CameraController():
         Settings.SaveConfig()
 
     def AddCustomCommand(self, command):
-        Frame_CommandParent = tk.Frame(self.Frame_CustomCommands, relief='groove', borderwidth = 2)
+        Frame_CommandParent = tk.Frame(self.Frame_CustomCommands.contents, relief='groove', borderwidth = 2)
         Frame_CommandParent.pack(fill='x')
 
         RemoveButton = tk.Button(Frame_CommandParent, text='x', command=Frame_CommandParent.destroy)#lambda:root.RemoveCustomCommand(Frame_CommandParent))
         CommandEntry = tk.Entry(Frame_CommandParent)
-        SaveButton = tk.Button(Frame_CommandParent, text='Save', command=lambda:self.SaveCustomCommand(self.Frame_CustomCommands, CommandEntry.get()))
+        SaveButton = tk.Button(Frame_CommandParent, text='Save', command=lambda:self.SaveCustomCommand(self.Frame_CustomCommands.contents, CommandEntry.get()))
 
         CommandEntry.insert(0, command)
         CommandEntry.bind('<Return>', lambda event: self.SendManualCommand(CommandEntry))
@@ -636,12 +636,20 @@ class CameraController():
             Frame_Presets.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
             Frame_SetupPanel.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
 
+        def weightToggle(state):
+            if (state):
+                self.window.rowconfigure(1, weight=0)
+            else:
+                self.Frame_CustomCommands.frameConfigureCommand(self.Frame_CustomCommands)
 
-        Frame_CustomCommandsParent = tk.LabelFrame(self.window, text='Custom commands')
-        self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent, cHeight=0, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 1))
+        Frame_CustomCommandsParent = ToggleFrame(self.window, title='Custom commands', togglePin='left',
+                                                 buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
+                                                 toggleCommand=weightToggle)
+        self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent.contentFrame, cHeight=0,
+                                                frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 1))
         if True:
-            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent, text='Add Custom Command', relief='raised')
-            Frame_CustomCommandsToolbar = tk.Frame(Frame_CustomCommandsParent)
+            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame, text='Add Custom Command', relief='raised')
+            Frame_CustomCommandsToolbar = tk.Frame(Frame_CustomCommandsParent.contentFrame)
             if True:
                 PrefabCommandsButton.pack()
 
@@ -676,7 +684,6 @@ class CameraController():
 
             Frame_CustomCommandsToolbar.pack(side='bottom', pady=8, fill='x')
             self.Frame_CustomCommands.pack(padx=self.PadExt, pady=self.PadExt, fill='both', expand=True)
-            self.Frame_CustomCommands = self.Frame_CustomCommands.contents
     
         Frame_Main.grid(column=0, row=0, padx=self.PadExt, pady=self.PadExt, sticky='nsew')
         Frame_CustomCommandsParent.grid(column=0, row=1, padx=self.PadExt, pady=self.PadExt, sticky='nsew')
@@ -1479,8 +1486,10 @@ class ToggleButtonChecked(tk.Frame):
 
 
 class ToggleFrame(tk.Frame):
-    def __init__(self, parent, title='frame', keepTitle=False, buttonShowTitle='Show Frame', buttonHideTitle='Hide Frame', togglePin='right', toggleCommand = None, contentPadx=3, *args, **options):
-        #togglePin should be either 'left' or 'right'
+    def __init__(self, parent, title='frame', keepTitle=False,
+                 buttonShowTitle='Show Frame', buttonHideTitle='Hide Frame',
+                 togglePin='right', toggleCommand = None, contentPadx=3,
+                 *args, **options):
         tk.Frame.__init__(self, parent, *args, **options)
 
         self.open = tk.IntVar()
@@ -1492,6 +1501,7 @@ class ToggleFrame(tk.Frame):
 
         self.Titlebar = tk.Frame(self)
         self.Titlebar.pack(fill='x', ipady=2, ipadx=2, padx=3, pady=3)
+        #togglePin should be one of the widget.pack() sides
         self.TogglePin=togglePin
 
         self.expandButton = tk.Button(self.Titlebar, text=self.ButtonShowText, command=self.toggle)
