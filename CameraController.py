@@ -70,7 +70,6 @@ class CameraController():
         self.OptionsMenuOpen = False
         self.ConfigUpdateTimer = self.ConfigUpdateInterval = 10.0
 
-
         self.PadExt = 15 #padding around container frames
         self.PadInt = 3 #padding around internal frames
 
@@ -85,7 +84,6 @@ class CameraController():
 
         self.PrefabCommandCurrentCamera = 'CameraID:#'
         self.PrefabConfigCurrentCamera = 'Camera #'
-
 
         #the codec is 1-indexed, so we'll ignore [0] and use [1]-[35]
         self.CameraPresets = [] #list of CameraPreset 
@@ -127,7 +125,6 @@ class CameraController():
                                 'tilt':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetPanTilt(None, value))),
                                 'zoom':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetZoom(value))),
                                 'focus':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetFocus(value)))}
-
 
         self.ssh = paramiko.SSHClient()
         self.ssh.load_system_host_keys()
@@ -737,7 +734,6 @@ class CameraController():
                     elif (bindingSubdevice == 'hat'):
                         hatNum, hatDirection = segments[2:]
                         self.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(bindingControllerButton(command))
-            
 
     def settingsMenuClosed(self, event):
         self.SettingsMenu=None
@@ -1297,7 +1293,6 @@ class CameraController():
                                     if (camera.selected is None):
                                         self.cameras[camNumber].select()
                                     debug.print('Camera ' + str(camNumber) + ' Status: ' + str(boolConnected))
-            
                 debug.print('^^^^')
         
         self.updateDirectValues()
@@ -1634,7 +1629,6 @@ class bindingFrame(tk.Frame):
         self.deviceSubtypeLast = None
         #(button, analog) each is true or false
         self.commandType=(command[1]=='button' or command[1]=='both', command[1]=='analog' or command[1]=='both')
-        
 
         self.contents=None
         if True:
@@ -1715,7 +1709,6 @@ class bindingFrame(tk.Frame):
                         else: self.contents[3].set(bindables.thresholdDefaultMidiCC)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0, to_=1, digits=3, resolution=0.01, orient='horizontal' ).pack(side='left', padx=2, pady=2)
-
 
                 elif (deviceType == 'controller'): 
                     if (deviceSubtype == 'axis'):
@@ -1858,7 +1851,6 @@ class ControlBindPresetPanel(ControlBindPanel):
         def updateCommandName(newText):
             self.bindableName=bindables.bindingPresetsPrefix+newText
             #TODO: make invalid if newText is empty
-
             return True
         validateCommand=self.register(updateCommandName)
 
@@ -1901,6 +1893,7 @@ class bindingMidi(_bindingBase_):
 class bindingControllerButton(_bindingBase_):
     def __init__(self, command):
         _bindingBase_.__init__(self, command)
+
 class bindingControllerAxis(_bindingBase_):
     def __init__(self, type, flip, function, threshold=None):
         _bindingBase_.__init__(self, function)
@@ -1911,7 +1904,6 @@ class bindingControllerAxis(_bindingBase_):
         self.threshold=threshold
 
 class bindables():
-
     thresholdDefaultController = .2
     thresholdDefaultMidiCC = .1
     
@@ -2229,9 +2221,6 @@ class DummySSH():
         #TODO: resend all the preset list result stuff on request
         #TODO: 
         None
-
-
-
 
 #start the actual program
 if __name__ == '__main__':
