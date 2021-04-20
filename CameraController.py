@@ -224,18 +224,21 @@ class CameraController():
 
         
     def toggleAllPresetEditStates(self, state):
-        for child in self.Frame_PresetsContainer.winfo_children():
-            child.SetEditState(state)
+        for child in self.Frame_PresetsContainer.contents.winfo_children():
+            if (child.grid_info()['row']>0):
+                child.SetEditState(state)
     def filterPresetsCurrent(self, filter):
         self.PresetsFiltered = filter
-        for child in self.Frame_PresetsContainer.winfo_children():
-            child.filter()
+        for child in self.Frame_PresetsContainer.contents.winfo_children():
+            if (child.grid_info()['row']>0):
+                child.filter()
 
     def ListPresetsCamera(self):
         self.shell.send('xCommand Camera Preset List\n')
 
-    def CreateNewPreset(self):
-        self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camera.selectedNum) + ' Name: "Unnamed"\n')
+    def CreateNewPreset(self, camNum):
+        if (camNum==None): camNum=camera.selectedNum
+        self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "Unnamed"\n')
 
     def InitializePresetLists(self):
         print('initializing presets')
@@ -243,16 +246,17 @@ class CameraController():
         for i in range(36):
             self.CameraPresets.append(None)
         if (self.Frame_PresetsContainer):
-            for child in self.Frame_PresetsContainer.winfo_children():
-                child.destroy()
+            for child in self.Frame_PresetsContainer.contents.winfo_children():
+                if (child.grid_info()['row']>0):
+                    child.destroy()
         self.CamerasPresets=[]
         self.ListPresetsCamera()
 
     def UpdatePresetButton(self, PresetIndex):
         presetPanel = self.CameraPresets[PresetIndex].widget
         if (not presetPanel):
-            presetPanel = CameraPresetPanel(self.Frame_PresetsContainer, PresetIndex)
-            presetPanel.grid(column=0, row=PresetIndex, sticky='ew')
+            presetPanel = CameraPresetPanel(self.Frame_PresetsContainer.contents, PresetIndex)
+            #presetPanel.grid(column=0, row=PresetIndex, sticky='ew')
             self.CameraPresets[PresetIndex].widget = presetPanel
         presetPanel.updateContents()
 
@@ -530,28 +534,28 @@ class CameraController():
 
             Frame_Presets = tk.Frame(Frame_Main, relief='sunken', borderwidth=2)
             if True:
-                Frame_PresetsToolbar1 = tk.Frame(Frame_Presets)
+                Frame_PresetsToolbar = tk.Frame(Frame_Presets)
                 if True:
-                    tk.Button(Frame_PresetsToolbar1, text='New preset', command = self.CreateNewPreset).pack(side='left')
-                    tk.Button(Frame_PresetsToolbar1, text = 'Reload', command = self.InitializePresetLists).pack(side='left')
-            
-                Frame_PresetsToolbar2 = tk.Frame(Frame_Presets)
-                if True:
-                    self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar2, textOff=['locked', 'unlock'], textOn = ['lock','unlocked'], toggleCommand=self.toggleAllPresetEditStates)
+
+                    self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar, textOff=['locked', 'unlock'], textOn = ['lock','unlocked'], toggleCommand=self.toggleAllPresetEditStates)
                     self.TogglePresetEdit.pack(side='left')
+                    tk.Button(Frame_PresetsToolbar, text = 'Reload', command = self.InitializePresetLists).pack(side='left')
                 
-                    ToggleButtonChecked(Frame_PresetsToolbar2, textOff=['unfiltered', 'filter'], textOn = ['unfilter', 'filtered'], toggleCommand=self.filterPresetsCurrent).pack(side='left')
+                    #ToggleButtonChecked(Frame_PresetsToolbar, textOff=['unfiltered', 'filter'], textOn = ['unfilter', 'filtered'], toggleCommand=self.filterPresetsCurrent).pack(side='left')
                 
-                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, cHeight=0, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
+                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
+                
+                self.presetAddButtons=[None]
 
-                Frame_PresetsToolbar1.pack()
-                Frame_PresetsToolbar2.pack()
+                for i in range(1,8):
+                    frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
+                    tk.Label(frame_presetHeader, text='Cam '+str(i)).pack()
+                    self.presetAddButtons.append(tk.Button(frame_presetHeader, text='New preset', command = lambda i=i: self.CreateNewPreset(i)))
+                    #packing of this button happens in Camera.onEnable()
+                    frame_presetHeader.grid(column=i, row=0, sticky='nsew')
+                    self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
+                Frame_PresetsToolbar.pack()
                 self.Frame_PresetsContainer.pack(fill='both', expand=True)
-
-                self.Frame_PresetsContainer = self.Frame_PresetsContainer.contents #from here on out, we only care about accessing the contents so we'll just change the variable over to avoid accidentally addressing the parent
-                self.Frame_PresetsContainer.columnconfigure(0, weight=1) #the column should stretch to fill available space
-            
-
 
             def OptionsMenuToggle(toggle):
                 self.OptionsMenuOpen = toggle
@@ -633,7 +637,7 @@ class CameraController():
             self.Frame_CameraList.pack(side='left', fill='y',padx=self.PadInt, pady=self.PadInt)
             Frame_Readout.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
             Frame_ButtonGrid.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
-            Frame_Presets.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
+            Frame_Presets.pack(side='left', fill='both', padx=self.PadInt, pady=self.PadInt, expand=True)
             Frame_SetupPanel.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
 
         def weightToggle(state):
@@ -645,7 +649,7 @@ class CameraController():
         Frame_CustomCommandsParent = ToggleFrame(self.window, title='Custom commands', togglePin='left',
                                                  buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
                                                  toggleCommand=weightToggle)
-        self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent.contentFrame, cHeight=0,
+        self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent.contentFrame, maxHeight=400,
                                                 frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 1))
         if True:
             PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame, text='Add Custom Command', relief='raised')
@@ -796,7 +800,7 @@ class CameraController():
             if True:
                 tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=self.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
 
-            bindingsList = ScrollFrame(self.SettingsMenu, cHeight=400)
+            bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 
             tempBinds=[]
             i=0
@@ -1305,6 +1309,7 @@ class CameraController():
         self.updateDirectValues()
 
 class CameraPreset():
+    #TODO: merge into CameraPresetPanel
     def __init__(self, listPosition=None, camera = None, name = None, presetId=None, widget=None):
         self.cameraId = camera
         self.name = name
@@ -1340,7 +1345,7 @@ class CameraPresetPanel(tk.Frame):
         self.cameraId = tk.Label(self.frameMain)
         self.activateButton = tk.Button(self.frameMain, text='activate', command=self.activatePreset)
 
-        self.cameraId.pack(side='left')
+        #self.cameraId.pack(side='left')
         self.activateButton.pack(side='left')
 
         self.frameButtons = tk.Frame(self)
@@ -1362,7 +1367,7 @@ class CameraPresetPanel(tk.Frame):
         self.presetIdLabel.config(text=self.presetEntry.presetId)
         self.cameraId.config(text='Camera ' + str(self.presetEntry.cameraId))
         #CameraController.current.CameraPresets[self.index]
-        self.grid(column=0, row=self.index, sticky='nsew')
+        self.filter()
     def saveToPreset(self):
         CameraController.current.shell.send('xCommand Camera Preset Store '
                     + 'PresetId: ' + str(self.presetEntry.presetId)
@@ -1387,12 +1392,8 @@ class CameraPresetPanel(tk.Frame):
         CameraController.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetEntry.presetId)+ ' ListPosition: '+ str(self.index) +'\n')
         CameraController.current.InitializePresetLists()
         #TODO: rearrange list internally, instead of rebuilding the whole list on every change
-
-
     def activatePreset(self):
         CameraController.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetEntry.presetId)+'\n')
-
-
     def SetEditState(self, unlock):
         if (unlock):
             self.frameButtons.pack(fill='x')
@@ -1403,8 +1404,18 @@ class CameraPresetPanel(tk.Frame):
             self.presetNameEntry.forget()
             self.presetNameLabel.pack(side='left')
     def filter(self):
-        if (CameraController.current.PresetsFiltered and camera.selectedNum != CameraController.current.CameraPresets[self.index].cameraId): self.grid_forget()
-        else: self.grid(column = 0, row=self.index, sticky='nsew')
+        if (CameraController.current.PresetsFiltered
+            and camera.selectedNum != CameraController.current.CameraPresets[self.index].cameraId):
+                self.grid_forget()
+        else:
+            col=self.presetEntry.cameraId
+            row=1
+            info = self.grid_info()
+            for i in range(1, 36):
+                if ((info and info['row']==i and info['column']==col) or not len(self.master.grid_slaves(column=col, row=i))):
+                    row=i
+                    break
+            self.grid(column=col, row=row, sticky='nsew')
 
 
 
@@ -1529,14 +1540,13 @@ class ToggleFrame(tk.Frame):
             self.open.set(1)
             if (self.ToggleCommand): self.ToggleCommand(True)
 class ScrollFrame(tk.Frame):
-    def __init__(self, parent, cHeight=200, frameConfigureCommand=None, *args, **options):
+    def __init__(self, parent, maxHeight=0, frameConfigureCommand=None, *args, **options):
         tk.Frame.__init__(self, parent, *args, **options)
         self.config(relief='groove', borderwidth = 2)
 
         self.bind('<Enter>', self.bindMouseWheel)
         self.bind('<Leave>', self.unbindMouseWheel)
-
-        self.canvas = tk.Canvas(self, borderwidth=0, highlightthickness=0, width=0, height=cHeight)
+        self.canvas = tk.Canvas(self, borderwidth=0, highlightthickness=0, width=0, height=0)
         self.scrollbar = tk.Scrollbar(self, orient='vertical', command = self.canvas.yview)
         self.contents=tk.Frame(self.canvas, relief='groove', borderwidth = 2)
 
@@ -1549,16 +1559,16 @@ class ScrollFrame(tk.Frame):
         self.contents.bind('<Configure>', self.onFrameConfigure)
         self.canvas.bind('<Configure>', self.onCanvasConfigure)
         self.frameConfigureCommand = frameConfigureCommand
-        
     def onFrameConfigure(self, event):
-        self.canvas.configure(scrollregion = self.canvas.bbox('all'))
-        if (self.frameConfigureCommand): self.frameConfigureCommand(self)
-
+        bbox=self.canvas.bbox('all')
+        self.canvas.configure(scrollregion = bbox,
+                              width=self.canvas.winfo_children()[0].winfo_reqwidth())
+        if (self.frameConfigureCommand):
+            self.frameConfigureCommand(self)
     def onCanvasConfigure(self, event):
         #TODO: see above about borderwidth and highlightthickness
-        width=event.width #-borderwidth*2 - highlightthickness*2
+        width=max(self.canvas.bbox('all')[2],event.width) #-borderwidth*2 - highlightthickness*2
         self.canvas.itemconfig(self.canvasFrame,  width=width)
-        #self.contents.columnconfigure(0,minsize=width-4) #what's this extra 4? grid padding, maybe?
     def bindMouseWheel(self, event):
         #TODO: for X11 systems, may need to use <Button-4> and <Button-5> instead
         self.canvas.bind_all('<MouseWheel>', self.onMouseWheel)
@@ -2176,9 +2186,11 @@ class camera():
         self.connected=False
         self.onDeselect()
         self.selectButton.config(image=camera.imageCamNone, state='disabled')
+        CameraController.current.presetAddButtons[self.number].forget()
     def onEnable(self):
         self.connected=True
         self.onDeselect()
+        CameraController.current.presetAddButtons[self.number].pack(padx=5)
 
     def selectCamera(newCamera):
         if ((not camera.selected) or camera.selected != newCamera):
@@ -2206,14 +2218,17 @@ class DummySSH():
                     '* PresetListResult Preset 3 PresetId: 3\n'
                     '* PresetListResult Preset 4 CameraId: 3\n'
                     '* PresetListResult Preset 4 Name: "Definitely_Real_Preset"\n'
-                    '* PresetListResult Preset 4 PresetId: 4\n')
+                    '* PresetListResult Preset 4 PresetId: 4\n'
+                    '* PresetListResult Preset 5 CameraId: 1\n'
+                    '* PresetListResult Preset 5 Name: "another"\n'
+                    '* PresetListResult Preset 5 PresetId: 5\n')
     def __init__(self):
 
         #populate the initial response with a handful of things to get us started
         self.responseQueue = ('* Camera 1 Connected: True\n'
                               '* Camera 2 Connected: True\n'
                               '* Camera 3 Connected: True\n'
-                              ) + DummySSH.dummyPresetData
+                              )
         for i in range(3):
             self.responseQueue += ('* Camera ' + str(i+1) + ' Position Focus: 4500\n'
                                 '* Camera ' + str(i+1) + ' Position Zoom: 0\n'
@@ -2228,9 +2243,11 @@ class DummySSH():
         self.responseQueue = None
         return response
     def send(self, message):
-        #TODO: resend all the preset list result stuff on request
-        #TODO: 
-        None
+        if ('xCommand Camera Preset List' in message):
+            self.addResponse(DummySSH.dummyPresetData)
+    def addResponse(self, message):
+        if (self.responseQueue is None): self.responseQueue=message
+        else: self.responseQueue += message
 
 #start the actual program
 if __name__ == '__main__':
