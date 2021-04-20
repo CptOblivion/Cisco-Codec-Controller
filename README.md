@@ -21,7 +21,6 @@ To install the SSH package, use:
 
 * nudge focus +- bindings
 
-* present camera presets as a grid (column is camera number, row is preset list order)
 * editable field for coinfig panel update frequency
 * treat midi note on with velocity 0 as note off instead
 * more icons for buttons

@@ -3,16 +3,16 @@
   "defaults": {},
   "configurations": [
     {
-      "type": "python",
-      "interpreter": "(default)",
-      "interpreterArguments": "",
-      "scriptArguments": "",
-      "env": {},
-      "nativeDebug": false,
-      "webBrowserUrl": "",
-      "project": "CameraController.py",
-      "projectTarget": "",
-      "name": "CameraController.py"
+        "type": "python",
+        "interpreter": "(default)",
+        "interpreterArguments": "",
+        "scriptArguments": "", //DummySSH
+        "env": {},
+        "nativeDebug": false,
+        "webBrowserUrl": "",
+        "project": "CameraController.py",
+        "projectTarget": "",
+        "name": "CameraController.py"
     }
   ]
 }
