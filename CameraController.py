@@ -42,13 +42,13 @@ class CameraController():
         self.init = False
 
         self.window = tk.Tk()
-        self.window.title('Cisco Codec Controller XD Deluxe 9000 👌👏😁👍')
+        self.window.title('Cisco Codec Controller XD Deluxe 9000')
 
         #Pan: 0-816
         #Tilt: 0-212
         #Zoom: 0-2885
         #Focus: 4096-4672
-        self.PanSpeed = tk.IntVar()#1-15
+        self.PanSpeed = tk.IntVar() #1-15
         self.TiltSpeed = tk.IntVar() #1-15
         self.ZoomSpeed = tk.IntVar() #1-15
         self.PanSpeed.set(1)

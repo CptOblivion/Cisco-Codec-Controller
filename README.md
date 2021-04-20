@@ -2,6 +2,19 @@
 
 This project is for controlling these cool cameras that my brother and dad have.
 
+*Running the project with Docker (in theory)*
+1. Install Docker: https://docs.docker.com/get-docker/
+2. In the root directory for this project, build the Docker image: `docker build -t camcontrol1 .`
+3. Run the container, attempting to pass in the display: `docker run -ti --rm  -e DISPLAY=$DISPLAY  -v /tmp/.X11-unix:/tmp/.X11-unix:rw  camcontrol1`
+4. Probably get error like `python: can't open file 'CameraController.py DummySSH': [Errno 2] No such file or directory`
+5. Double check that the working directory in the image looks right with these commands: 
+    `docker run -ti camcontrol1 sh` to run the container and open a shell inside it
+    `ls` to list the files in the container. Yep, `CameraController.py` is there. Weird!
+6. Try to run the program from within the shell in this container: `python CameraController.py DummySSH`
+7. Ah dang it doesn't have access to the `$DISPLAY` environment variable, how do I pass that into the container?
+8. Return to local shell with `exit`
+9. See if there's anything in the `$DISPLAY` environment variable with `echo $DISPLAY`. Hmmm... nope
+10. Cry
 
 To install the SSH package, use:
     Windows:
@@ -17,7 +30,7 @@ To install the SSH package, use:
 
 (at some point in the future) to run locally, clone this repo and run `docker compose` or like `make backend` or something.
 
-\b Roadmap: \b
+Roadmap:
 
 #TODO: nudge focus +- bindings
 
