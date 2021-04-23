@@ -8,6 +8,7 @@ import pygame.midi
 import pygame.joystick
 import math
 import sys
+import os
 from configparser import ConfigParser
 from copy import deepcopy
 
@@ -364,7 +365,7 @@ class CameraController():
 
     def AddDirectionButton(self, label,frame,gridY, gridX, functionDn, functionUp, image=None):
         if (image):
-            try: image = tk.PhotoImage(file = image)
+            try: image = tk.PhotoImage(file = Assets.getPath(image))
             except: image=None
         if (image): button = tk.Button(frame, image=image, relief='flat', borderwidth=0)
         else: button = tk.Button(frame, text=label, width=3, height=2)
@@ -536,7 +537,7 @@ class CameraController():
                 self.AddDirectionButton('Z-', Frame_ButtonGrid, 2, 5, self.ZoomOut,self.StopZoom)
                 self.AddDirectionButton('F+', Frame_ButtonGrid, 1, 6, self.FocusFar, self.StopFocus)
                 self.AddDirectionButton('F-', Frame_ButtonGrid, 2, 6, self.FocusNear, self.StopFocus)
-                image=tk.PhotoImage(file=r'Assets\Arrow_C.png')
+                image=tk.PhotoImage(file=Assets.getPath('Assets\Arrow_C.png'))
                 button=tk.Button(Frame_ButtonGrid, text='FTrig', relief='flat', borderwidth=0, image=image, command= self.TriggerAutofocus)
                 button.grid(column=2, row=2)
                 button.image=image
@@ -2167,13 +2168,18 @@ class controlDirect():
             if (self.delayTimer <=0):
                 if (self.value is not None and self.enabled): self.command(self.value)
 
+class Assets():
+    def getPath(path):
+        basePath=getattr(sys, '_MEIPASS', os.path.abspath('.')) #abspath(__file__) instead?
+        return os.path.join(basePath, path)
+
 class camera():
     selected=None
     selectedNum=None
     def __init__(self, number):
-        camera.imageCamAvailable = tk.PhotoImage(file=r'Assets\Button_CamAvailable.png')
-        camera.imageCamSelected = tk.PhotoImage(file=r'Assets\Button_CamSelected.png')
-        camera.imageCamNone = tk.PhotoImage(file=r'Assets\Button_CamNone.png')
+        camera.imageCamAvailable = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamAvailable.png'))
+        camera.imageCamSelected = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamSelected.png'))
+        camera.imageCamNone = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamNone.png'))
         self.number=number
         self.connected=False
         #Pan Tilt Zoom Focus

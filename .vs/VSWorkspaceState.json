@@ -1,6 +1,7 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\dist"
   ],
   "SelectedNode": "\\CameraController.py",
   "PreviewInSolutionExplorer": false

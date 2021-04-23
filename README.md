@@ -2,6 +2,9 @@
 
 This project is for controlling these cool cameras that my brother and dad have.
 
+To build windows executable:
+* install pyinstaller (py -m pip install pyinstaller)
+* run pyinstaller.bat from project directory 
 
 To install the SSH package, use:
     Windows:
