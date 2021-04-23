@@ -533,9 +533,23 @@ class CameraPresetPanel(tk.Frame):
         self.destroy()
 
     def rearrangePreset(self, shift):
-        self.index=min(36,max(0, self.index+shift))
+        
+        currentIndex=self.grid_info()['row']
+        newIndex=min(36,max(1, currentIndex+shift))
+        if (newIndex > 0):
+            targetWidget=self.master.grid_slaves(newIndex, self.cameraId)
+            if (len(targetWidget)):
+                targetWidget=targetWidget[0]
+                oldIndex=self.index
+                self.index=targetWidget.index
+                targetWidget.index=oldIndex
+                self.grid(column=self.cameraId, row=newIndex, sticky='nsew')
+                targetWidget.grid(column=self.cameraId, row=currentIndex, sticky='nsew')
+
+        #self.index=min(36,max(1, self.index+shift))
+
         controller.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetId)+ ' ListPosition: '+ str(self.index) +'\n')
-        controller.current.InitializePresetLists()
+        #controller.current.InitializePresetLists()
         #TODO: rearrange list internally, instead of rebuilding the whole list on every change
 
     def activatePreset(self):

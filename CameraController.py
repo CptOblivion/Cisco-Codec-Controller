@@ -75,7 +75,7 @@ class CameraController():
         self.PrefabConfigCurrentCamera = 'Camera #'
 
         #the codec is 1-indexed, so we'll ignore [0] and use [1]-[35]
-        self.CameraPresets = [] #list of CameraPreset 
+        self.CameraPresets = [] #list of CameraPresetPanel
         self.CamerasPresets = [] #probably won't use, but reserving the variable name
         self.Frame_PresetsContainer = None
         self.PresetsFilteredConnected = tk.IntVar()
