@@ -143,7 +143,7 @@ class bindables():
         if (buttonValue):
             for preset in controller.current.CameraPresets:
                 if (preset and preset.isValid() and preset.name==presetName):
-                    preset.widget.activatePreset()
+                    preset.activatePreset()
                 
                     #TODO: figure out of it's preferable to run the whole loop and trigger every matching preset, or just the first match
                     #break
@@ -151,8 +151,8 @@ class bindables():
     bindablePresets=[]
 
     bindingCategory = '__CATEGORY__' #append this to the beginning of a key to mark that entry as a category rather than a proper entry
-    bindingPresets=bindingCategory+'activate presets'
-    bindingPresetsPrefix='preset_'
+    bindingPresets=bindingCategory+'activate presets' #special category entry for camera presets (processed uniquely)
+    bindingPresetsPrefix='preset_' #actual preset bindings saved in the ini start with this
     index = {
             bindingCategory+'move digital':'move_right_down', #collapsible categories contain all entries up to (and including) the key they contain
                 'move_left':(buttonPanL, 'button'),
