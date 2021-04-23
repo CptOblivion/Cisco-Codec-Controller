@@ -3,7 +3,7 @@ import time
 import os
 import tkinter as tk
 
-VersionNumber = '0.WIP' #previous: 0.46.1
+VersionNumber = '0.50' #previous: 0.46.1
 
 class deltaTime():
     lastTime=0
@@ -45,3 +45,18 @@ class inputRouting():
         if (inputRouting.settingsListenForInput):
             inputRouting.settingsListenForInput.listenButton.config(relief='raised')
         inputRouting.bindListenCancelSafe()
+
+class controlDirect():
+    def __init__(self, command=None, delay=.1):
+        self.delayTimer = self.delay=.1
+        self.value = None
+        self.command=command
+        self.enabled=True
+    def set(self, value):
+        self.value = value
+        self.delayTimer=self.delay
+    def update(self): #call every program loop iteration! Make sure deltaTime.update() is also being called every iteration!
+        if (self.delayTimer > 0):
+            self.delayTimer-=deltaTime.delta
+            if (self.delayTimer <=0):
+                if (self.value is not None and self.enabled): self.command(self.value)
