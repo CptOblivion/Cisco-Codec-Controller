@@ -78,8 +78,10 @@ class CameraController():
         self.CameraPresets = [] #list of CameraPreset 
         self.CamerasPresets = [] #probably won't use, but reserving the variable name
         self.Frame_PresetsContainer = None
-        self.PresetsFiltered = tk.IntVar()
-        self.PresetsFiltered.set(0)
+        self.PresetsFilteredConnected = tk.IntVar()
+        self.PresetsFilteredConnected.set(1)
+        self.PresetsFilteredCurrent = tk.IntVar()
+        self.PresetsFilteredCurrent.set(0)
 
         self.inputBuffer = None
         self.inputBufferTime = self.inputBufferTimer = .05 #TODO: make configurable
@@ -215,26 +217,34 @@ class CameraController():
         
     def toggleAllPresetEditStates(self, state):
         for child in self.Frame_PresetsContainer.contents.winfo_children():
-            if (hasattr(child, 'presetEntry')):
+            if (isinstance(child, CameraPresetPanel)):
                 child.SetEditState(state)
+        self.PresetsFilteredConnected.set(not state)
+        self.filterPresetsCurrent()
+
     def filterPresetsCurrent(self):
         for child in self.Frame_PresetsContainer.contents.winfo_children():
-            if (hasattr(child, 'presetEntry')):
+            if (isinstance(child, CameraPresetPanel)):
                 child.filter()
-        filterStatus=self.PresetsFiltered.get()
+        filterConnectedStatus=self.PresetsFilteredConnected.get()
+        filterCurrentStatus=self.PresetsFilteredCurrent.get()
         for i in range(1,len(self.presetAddButtons)):
+
             if (self.cameras[i].connected):
-                self.presetAddButtons[i].master.grid(column=i, row=0, sticky='nsew')
-                self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
                 self.presetAddButtons[i].pack(padx=5)
             else:
-                if (filterStatus):
-                    self.presetAddButtons[i].master.grid(column=i, row=0, sticky='nsew')
-                    self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
-                else:
-                    self.presetAddButtons[i].master.grid_forget()
-                    self.Frame_PresetsContainer.contents.columnconfigure(i, weight=0)
                 self.presetAddButtons[i].forget()
+
+            filtered=False
+            if (filterConnectedStatus and not self.cameras[i].connected): filtered=True
+            if (filterCurrentStatus and not Camera.selectedNum==i): filtered=True
+
+            if (filtered):
+                self.presetAddButtons[i].master.grid_forget()
+                self.Frame_PresetsContainer.contents.columnconfigure(i, weight=0)
+            else:
+                self.presetAddButtons[i].master.grid(column=i, row=0, sticky='nsew')
+                self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
 
         #not totally sure why this is necessary here and nowhere elese, but the frame resizes wrong otherwise.
         self.Frame_PresetsContainer.contents.update_idletasks()
@@ -255,18 +265,10 @@ class CameraController():
             self.CameraPresets.append(None)
         if (self.Frame_PresetsContainer):
             for child in self.Frame_PresetsContainer.contents.winfo_children():
-                if (hasattr(child, 'presetEntry')):
+                if (isinstance(child, CameraPresetPanel)):
                     child.destroy()
         self.CamerasPresets=[]
         self.ListPresetsCamera()
-
-    def UpdatePresetButton(self, PresetIndex):
-        presetPanel = self.CameraPresets[PresetIndex].widget
-        if (not presetPanel):
-            presetPanel = CameraPresetPanel(self.Frame_PresetsContainer.contents, PresetIndex)
-            #presetPanel.grid(column=0, row=PresetIndex, sticky='ew')
-            self.CameraPresets[PresetIndex].widget = presetPanel
-        presetPanel.updateContents()
 
     def StartMove(self, X, Y):
         if True:#(CameraPanning == CameraTilting == False):
@@ -546,11 +548,17 @@ class CameraController():
                 if True:
                     #TODO: maybe instead of the show all cameras check button, maybe the lock/unlock toggle should show/hide disconnected cameras
                     #(no need to see presets on disconnected cameras unless you're editing them, after all)
-                    self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar, textOff=['locked', 'unlock'], textOn = ['lock','unlocked'], toggleCommand=self.toggleAllPresetEditStates)
+                    self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar,
+                                                                textOff=['locked', 'unlock'],textOn = ['lock','unlocked'],
+                                                                toggleCommand=self.toggleAllPresetEditStates)
                     self.TogglePresetEdit.pack(side='left')
-                    tk.Checkbutton(Frame_PresetsToolbar, text='show all cameras',variable=self.PresetsFiltered, command=self.filterPresetsCurrent).pack(side='left')
-                    tk.Button(Frame_PresetsToolbar, text = 'Reload', command = self.InitializePresetLists).pack(side='right')
-                    #ToggleButtonChecked(Frame_PresetsToolbar, textOff=['unfiltered', 'filter'], textOn = ['unfilter', 'filtered'], toggleCommand=self.filterPresetsCurrent).pack(side='left')
+                    #tk.Checkbutton(Frame_PresetsToolbar, text='show all cameras',
+                    #               variable=self.PresetsFiltered, command=self.filterPresetsCurrent).pack(side='left')
+                    tk.Checkbutton(Frame_PresetsToolbar, text='only current camera',
+                                   variable=self.PresetsFilteredCurrent, command=self.filterPresetsCurrent).pack(side='left')
+
+                    tk.Button(Frame_PresetsToolbar, text = 'Reload',
+                              command = self.InitializePresetLists).pack(side='right')
                 
                 self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
                 
@@ -1271,7 +1279,7 @@ class CameraController():
                                 if (SplitString[i] == 'PresetListResult' and SplitString[i+1] == 'Preset'):
                                     PresetIndex = int(SplitString[i+2])
                                     if (self.CameraPresets[PresetIndex] == None):
-                                        self.CameraPresets[PresetIndex] = CameraPreset(PresetIndex)
+                                        self.CameraPresets[PresetIndex] = CameraPresetPanel(self.Frame_PresetsContainer.contents, PresetIndex)
                                         debug.print('added preset at index ' + str(PresetIndex))
                                     i+=2
                                 elif (SplitString[i] == 'Name:'):
@@ -1280,22 +1288,18 @@ class CameraController():
                                     while i < len(SplitString): #keep adding to name until the end of the line
                                         nameString += ' ' + SplitString[i]
                                         i+= 1
-                                    self.CameraPresets[PresetIndex].name = nameString[1:len(nameString)-1] #trim quotes
+                                    self.CameraPresets[PresetIndex].setContents(name = nameString[1:len(nameString)-1]) #trim quotes
                                     debug.print('added name "' + self.CameraPresets[PresetIndex].name + '" at index ' + str(PresetIndex))
                                     i+=1
                                 elif (SplitString[i] == 'CameraId:'):
-                                    self.CameraPresets[PresetIndex].cameraId = int(SplitString[i+1])
+                                    self.CameraPresets[PresetIndex].setContents(cameraId = int(SplitString[i+1]))
                                     debug.print('added cameraId ' + str(self.CameraPresets[PresetIndex].cameraId) + ' at index ' + str(PresetIndex))
                                     i+=1
                                 elif (SplitString[i] == 'PresetId:'):
-                                    self.CameraPresets[PresetIndex].presetId = int(SplitString[i+1])
+                                    self.CameraPresets[PresetIndex].setContents(presetId = int(SplitString[i+1]))
                                     debug.print('added Id ' + str(self.CameraPresets[PresetIndex].presetId) + ' at index ' + str(PresetIndex))
                                     i+=1
                                 i+=1
-                            if (self.CameraPresets[PresetIndex].isValid()):
-                                debug.print('Found Preset: ' + self.CameraPresets[PresetIndex].name)
-                                self.UpdatePresetButton(PresetIndex)
-
 
                         elif (StartPhraseCamera in ResponseLine): #!!!!!!!!!!!!! Make sure this elif is always the last in line !!!!!!!!!!!!
                             #(it'll catch any remaining command that includes the word 'camera')
@@ -1316,18 +1320,6 @@ class CameraController():
                 debug.print('^^^^')
         
         self.updateDirectValues()
-
-class CameraPreset():
-    #TODO: merge into UI.CameraPresetPanel
-    def __init__(self, listPosition=None, camera = None, name = None, presetId=None, widget=None):
-        self.cameraId = camera
-        self.name = name
-        self.presetId = presetId
-        self.widget = None
-        self.listPosition=listPosition
-    def isValid(self):
-        return(self.cameraId and self.presetId)
-
 
 class Settings():
     iniFilename='CameraController_'+VersionNumber+'.ini' 
@@ -1383,20 +1375,6 @@ class controlDirect():
             self.delayTimer-=deltaTime.delta
             if (self.delayTimer <=0):
                 if (self.value is not None and self.enabled): self.command(self.value)
-
-    def recv_ready(self):
-        if (self.responseQueue is not None): return True
-        return False
-    def recv(self, amount):
-        response=self.responseQueue.encode('ASCII')
-        self.responseQueue = None
-        return response
-    def send(self, message):
-        if ('xCommand Camera Preset List' in message):
-            self.addResponse(DummySSH.dummyPresetData)
-    def addResponse(self, message):
-        if (self.responseQueue is None): self.responseQueue=message
-        else: self.responseQueue += message
 
 #start the actual program
 if __name__ == '__main__':

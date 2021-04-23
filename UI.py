@@ -1,5 +1,6 @@
 from Helpers import *
 from Bindings import *
+from Camera import *
 
 class ToggleButton(tk.Button):
 
@@ -455,19 +456,22 @@ class CameraPresetPanel(tk.Frame):
     controller=None
     def __init__(self, parent, index, *args, **options):
         tk.Frame.__init__(self, parent, relief='ridge', borderwidth=2, *args, **options)
+        
         self.index = index
-
-        self.presetEntry=controller.current.CameraPresets[index]
+        self.cameraId=None
+        self.name=None
+        self.presetId=None
+        #self.listPosition=index
 
         self.frameName = tk.Frame(self)
         
         self.presetIdLabel = tk.Label(self.frameName)
 
         validation=self.register(self.renamePreset)
-        self.presetNameLabel = tk.Label(self.frameName, text=controller.current.CameraPresets[self.index].name)
+        self.presetNameLabel = tk.Label(self.frameName, text=self.name)
 
         self.presetNameEntry = tk.Entry(self.frameName, validate='key', validatecommand=(validation, '%S'))
-        self.presetNameEntry.insert(0,controller.current.CameraPresets[self.index].name)
+        #self.presetNameEntry.insert(0, self.name)
         self.presetNameEntry.bind('<Return>', lambda event: self.focus())
         self.presetNameEntry.bind('<FocusOut>', self.renamePreset)
 
@@ -475,7 +479,7 @@ class CameraPresetPanel(tk.Frame):
         #self.presetNameLabel.pack(side='left')
 
         self.frameMain = tk.Frame(self)
-        self.cameraId = tk.Label(self.frameMain)
+        self.cameraIdLabel = tk.Label(self.frameMain)
         self.activateButton = tk.Button(self.frameMain, text='activate', command=self.activatePreset)
 
         #self.cameraId.pack(side='left')
@@ -493,39 +497,50 @@ class CameraPresetPanel(tk.Frame):
         self.updateContents()
         self.SetEditState(controller.current.TogglePresetEdit.state)
         self.filter()
+
     def updateContents(self):
         self.presetNameEntry.delete(0,'end')
-        self.presetNameEntry.insert(0, self.presetEntry.name)
-        self.presetNameLabel.config(text=self.presetEntry.name)
-        self.presetIdLabel.config(text=self.presetEntry.presetId)
-        self.cameraId.config(text='Camera ' + str(self.presetEntry.cameraId))
+        if (self.name):
+            self.presetNameEntry.insert(0, self.name)
+            self.presetNameLabel.config(text=self.name)
+        if (self.presetId):
+            self.presetIdLabel.config(text=self.presetId)
+        if (self.cameraId):
+            self.cameraIdLabel.config(text='Camera ' + str(self.cameraId))
         self.filter()
+
     def saveToPreset(self):
         controller.current.shell.send('xCommand Camera Preset Store '
-                    + 'PresetId: ' + str(self.presetEntry.presetId)
-                    + ' CameraId: '+ str(self.presetEntry.cameraId)
+                    + 'PresetId: ' + str(self.presetId)
+                    + ' CameraId: '+ str(self.cameraId)
                     + ' ListPosition: ' + str(self.index)
                     + ' Name: ' + self.presetNameEntry.get() + '\r')
+
     def validatePresetName(self, newValue):
         if (newValue.contains(' ')): return False
         return True
+
     def renamePreset(self, event):
         presetName=self.presetNameEntry.get()
         if (presetName):
-            controller.current.shell.send('xCommand Camera Preset Edit PresetId: ' + str(self.presetEntry.presetId)
+            controller.current.shell.send('xCommand Camera Preset Edit PresetId: ' + str(self.presetId)
                         + ' Name: ' + presetName + '\n')
             self.presetNameLabel.config(text=presetName)
+
     def deletePreset(self):
-        controller.current.shell.send('xCommand Camera Preset Remove PresetId: ' + str(self.presetEntry.presetId) +'\n')
+        controller.current.shell.send('xCommand Camera Preset Remove PresetId: ' + str(self.presetId) +'\n')
         controller.current.CameraPresets[self.index] = None
         self.destroy()
+
     def rearrangePreset(self, shift):
         self.index=min(36,max(0, self.index+shift))
-        controller.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetEntry.presetId)+ ' ListPosition: '+ str(self.index) +'\n')
+        controller.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetId)+ ' ListPosition: '+ str(self.index) +'\n')
         controller.current.InitializePresetLists()
         #TODO: rearrange list internally, instead of rebuilding the whole list on every change
+
     def activatePreset(self):
-        controller.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetEntry.presetId)+'\n')
+        controller.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
+
     def SetEditState(self, unlock):
         if (unlock):
             self.frameButtons.pack(fill='x')
@@ -535,17 +550,32 @@ class CameraPresetPanel(tk.Frame):
             self.frameButtons.forget()
             self.presetNameEntry.forget()
             self.presetNameLabel.pack(side='left')
+    
     def filter(self):
+        if (self.isValid()):
+            if ((controller.current.PresetsFilteredConnected.get()
+                 and not controller.current.cameras[self.cameraId].connected)
+                or (controller.current.PresetsFilteredCurrent.get()
+                    and Camera.selectedNum!=self.cameraId)):
+                    self.grid_forget()
+            else:
+                col=self.cameraId
+                row=1
+                info = self.grid_info()
+                for i in range(1, 36):
+                    if ((info and info['row']==i and info['column']==col) or not len(self.master.grid_slaves(column=col, row=i))):
+                        row=i
+                        break
+                self.grid(column=col, row=row, sticky='nsew')
 
-        if (controller.current.PresetsFiltered.get()
-            and not controller.current.cameras[self.presetEntry.cameraId].connected):
-                self.grid_forget()
-        else:
-            col=self.presetEntry.cameraId
-            row=1
-            info = self.grid_info()
-            for i in range(1, 36):
-                if ((info and info['row']==i and info['column']==col) or not len(self.master.grid_slaves(column=col, row=i))):
-                    row=i
-                    break
-            self.grid(column=col, row=row, sticky='nsew')
+    def isValid(self):
+        return(self.cameraId and self.presetId)
+
+    def setContents(self, presetId=None, cameraId=None, name=None):
+        if (presetId is not None):
+            self.presetId=presetId
+        if (cameraId is not None):
+            self.cameraId=cameraId
+        if (name is not None):
+            self.name=name
+        self.updateContents()

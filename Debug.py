@@ -39,3 +39,16 @@ class DummySSH():
                                 '* Camera ' + str(i+1) + ' Position Pan: 400\n'
                                 '* Camera ' + str(i+1) + ' Position Tilt: 60\n'
                                    )
+    def recv_ready(self):
+        if (self.responseQueue is not None): return True
+        return False
+    def recv(self, amount):
+        response=self.responseQueue.encode('ASCII')
+        self.responseQueue = None
+        return response
+    def send(self, message):
+        if ('xCommand Camera Preset List' in message):
+            self.addResponse(DummySSH.dummyPresetData)
+    def addResponse(self, message):
+        if (self.responseQueue is None): self.responseQueue=message
+        else: self.responseQueue += message
