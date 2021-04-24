@@ -3,7 +3,6 @@ import pygame
 import pygame.midi
 import pygame.joystick
 import math
-from configparser import ConfigParser
 from copy import deepcopy
 
 from Camera import *
@@ -11,6 +10,7 @@ from Helpers import *
 from UI import *
 from Bindings import *
 from Debug import *
+from Settings import *
 
 #Note to self: F9 on a line to set a breakpoint
 
@@ -657,7 +657,7 @@ class CameraController():
             Frame_Presets.pack(side='left', fill='both', padx=self.PadInt, pady=self.PadInt, expand=True)
             Frame_SetupPanel.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
 
-        def weightToggle(state):
+        def weightToggle(state): #TODO: move to root of class
             if (state):
                 self.window.rowconfigure(1, weight=0)
             else:
@@ -733,7 +733,7 @@ class CameraController():
                 else:
                     command=bindables.index[commandIndex]
 
-                def addBinding(binding):
+                def addBinding(binding): #TODO: move to root of class
                     if (presetName is not None):
                         binding.bindablePreset=presetName
                     return binding
@@ -795,7 +795,7 @@ class CameraController():
                 self.enableFrame(child)
 
     def OpenSettingsMenu(self):
-        def SaveBindings():
+        def SaveBindings(): #TODO: move to root of class
             bindingString = ''
             for command in tempBinds:
                 for child in command.BindingList.winfo_children():
@@ -831,7 +831,7 @@ class CameraController():
                     categoryFrame.pack(fill='x', expand=True)
                     categoryFrame=categoryFrame.contentFrame
                     if (key == bindables.bindingPresets):
-                        def addNewPreset(frame):
+                        def addNewPreset(frame): #TODO: move to root of class
                             newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed', bindables.index[key], 'unnamed', tempBinds, newBinding=True)
                             newPanel.pack(fill='x', expand=True)
                             tempBinds.append(newPanel)
@@ -874,7 +874,7 @@ class CameraController():
             tk.Label(window, text='nice try').pack()
 
     def PopulateStartScreen(self):
-        def SSHConnect():
+        def SSHConnect(): #TODO: move to root of class
 
             Settings.config['Startup']['IPADDRESS'] = AddressField.get()
             Settings.config['Startup']['USERNAME'] = UsernameField.get()
@@ -1005,7 +1005,7 @@ class CameraController():
 
     def processController(self):
 
-        def processAxis(axisNumber, axisType, flip, threshold):
+        def processAxis(axisNumber, axisType, flip, threshold): #TODO: move to root of class
             value = controller.get_axis(axisNumber)
             if (threshold==1): threshold=.999
             
@@ -1024,7 +1024,7 @@ class CameraController():
             self.inputDevicesControllersLastVals['axis'][a] = value
             return (changed,value, changedButton)
         
-        def checkButton(buttonNumber):
+        def checkButton(buttonNumber): #TODO: move to root of class
             value = controller.get_button(buttonNumber)
             changed = value != self.inputDevicesControllersLastVals['button'][buttonNumber]
             self.inputDevicesControllersLastVals['button'][buttonNumber] = value
@@ -1102,7 +1102,7 @@ class CameraController():
 
     def ProcessMidi(self):
 
-        def checkInputValidity(bind):
+        def checkInputValidity(bind): #TODO: move to root of class?
             return ((not bind.midiDevice or bind.midiDevice ==self.inputDevicesMidiNames[deviceIndex])
                     and (not bind.midiChannel or bind.midiChannel == channel))
 

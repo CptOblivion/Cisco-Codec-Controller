@@ -1,4 +1,5 @@
 from Helpers import *
+from configparser import ConfigParser
 
 class Settings():
     iniFilename='CameraController_'+VersionNumber+'.ini' 
