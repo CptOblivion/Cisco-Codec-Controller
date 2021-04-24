@@ -128,8 +128,7 @@ class CameraController():
         
         Settings.openConfig()
         
-        self.printCodecResponse=tk.IntVar()
-        self.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
+        Settings.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
 
         self.parseBindings(Settings.config['Startup']['Bindings'])
 
@@ -769,7 +768,7 @@ class CameraController():
         inputRouting.bindListenCancelSafe()
 
     def toggleCodecDebugPrints(self):
-        Settings.config['Startup']['PrintFullCodecResponse']=str(self.printCodecResponse.get())
+        Settings.config['Startup']['PrintFullCodecResponse']=str(Settings.printCodecResponse.get())
         Settings.SaveConfig()
 
     noDisable=('Frame', 'Labelframe', 'Scrollbar', 'Toplevel', 'Canvas')
@@ -815,7 +814,7 @@ class CameraController():
 
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
-                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=self.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=Settings.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
 
             bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 

@@ -8,7 +8,8 @@ class debug():
     verbosePrints = False
 
     def print(message):
-        if (debug.verbosePrints): print(message)
+        if (Settings.printCodecResponse.get()):
+            print(message)
 class DummySSH():
     UseDummy=False
     dummyPresetData=('* PresetListResult Preset 1 CameraId: 1\n'
