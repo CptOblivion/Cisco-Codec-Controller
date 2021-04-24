@@ -874,40 +874,61 @@ class CameraController():
             tk.Label(window, text='nice try').pack()
 
     def PopulateStartScreen(self):
-        def SSHConnect(): #TODO: move to root of class
+        def SSHConnect():
+            connected=False
 
             Settings.config['Startup']['IPADDRESS'] = AddressField.get()
             Settings.config['Startup']['USERNAME'] = UsernameField.get()
             Settings.config['Startup']['PASSWORD'] = PasswordField.get()
 
             Settings.SaveConfig()
-            if (not DummySSH.UseDummy):
+            if (DummySSH.UseDummy):
+                self.shell=DummySSH()
+                connected=True
+            else:
                 print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
 
+                try:
+                    self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'],
+                                     username=Settings.config['Startup']['USERNAME'],
+                                     password=Settings.config['Startup']['PASSWORD'])
+                except paramiko.ssh_exception.BadAuthenticationType:
+                    #TODO: feedback in main window
+                    print('\n\nusername or password mismatch!')
+                except paramiko.ssh_exception.NoValidConnectionsError:
+                    print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
+                except:
+                    #TODO: 
+                    print("Connection Exception:", sys.exc_info()[0])
+                else:
+                    connected=True
+                if (connected):
+                    self.shell = self.ssh.invoke_shell()
+                    while not (self.shell.recv_ready()):
+                            time.sleep(1)
+                    out = self.shell.recv(9999).decode('ascii')
+                    matchString=['Welcome to',
+                                 'Cisco Codec Release']
+                    print(out)
+                    for match in matchString:
+                        if (match not in out):
+                            #TODO: this is probably not very reliable
+                            print ( 'connected to wrong device??')
+                            connected=False
+                            break
+            if (connected):
+                StartFrame.destroy()
+                self.PopulateButtons()
+                self.FeedbackSubscribe()
+                for i in range(7):
+                    self.CameraAvailable(i+1, False)
 
-                self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'], username=Settings.config['Startup']['USERNAME'], password=Settings.config['Startup']['PASSWORD'])
-                self.shell = self.ssh.invoke_shell()
-                while not (self.shell.recv_ready()):
-                        time.sleep(1)
-                out = self.shell.recv(9999)
-                print(out.decode('ascii'))
-                #TODO: handle connection refused: wrong IP address, username/password incorrect
-
-                #TODO: some sort of check to see if we're connected to the right device
-                #   look for: 'Welcome to\r\n Cisco Codec Release' and 'Login successful'
-            else:
-                self.shell=DummySSH()
-
-            StartFrame.destroy()
-            self.PopulateButtons()
-            self.FeedbackSubscribe()
-            for i in range(7):
-                self.CameraAvailable(i+1, False)
-
-            self.UpdateCameraConnectionStatus()
-            self.InitializePresetLists()
-            self.init = True
-
+                self.UpdateCameraConnectionStatus()
+                self.InitializePresetLists()
+                self.init = True
+            
+        def SSHConnectEvent(event):
+            SSHConnect()
 
         StartFrame = tk.Frame(self.window)
         if True:
@@ -920,7 +941,7 @@ class CameraController():
                 AddressField = tk.Entry(AddressFrame)
                 AddressField.insert(0,Settings.config['Startup']['IPADDRESS'])
                 AddressField.focus_set()
-                AddressField.bind('<Return>',lambda event: SSHConnect)
+                AddressField.bind('<Return>',SSHConnectEvent)
                 AddressField.pack(side='left')
 
             UsernameFrame=tk.Frame(StartFrame)
@@ -929,7 +950,7 @@ class CameraController():
 
                 UsernameField = tk.Entry(UsernameFrame)
                 UsernameField.insert(0,Settings.config['Startup']['USERNAME'])
-                UsernameField.bind('<Return>',lambda event: SSHConnect)
+                UsernameField.bind('<Return>',SSHConnectEvent)
                 UsernameField.pack(side='left')
 
             PasswordFrame=tk.Frame(StartFrame)
@@ -938,7 +959,7 @@ class CameraController():
 
                 PasswordField = tk.Entry(PasswordFrame)
                 PasswordField.insert(0,Settings.config['Startup']['PASSWORD'])
-                PasswordField.bind('<Return>',lambda event: SSHConnect)
+                PasswordField.bind('<Return>',SSHConnectEvent)
                 PasswordField.pack(side='left')
 
             EnterButton = tk.Button(StartFrame, text='Connect', command=SSHConnect)
