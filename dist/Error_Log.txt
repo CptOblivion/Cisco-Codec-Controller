@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "CameraController.py", line 1366, in <module>
+  File "CameraController.py", line 1193, in main
+NameError: name 'CrashHerePlease' is not defined
