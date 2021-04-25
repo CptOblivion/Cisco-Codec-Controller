@@ -2,7 +2,6 @@ from Helpers import *
 from configparser import ConfigParser
 
 class Settings():
-    printCodecResponse=tk.IntVar()
     iniFilename='CameraController_'+VersionNumber+'.ini' 
     CustomCommandName="Add custom commands below this line (just make sure they're tabbed in a level)"
     Defaults = {
@@ -24,6 +23,9 @@ class Settings():
             CustomCommandName:''
             }
         }
+    def initializeSettings():
+        Settings.printCodecResponse=tk.IntVar()
+
     def openConfig():
         Settings.config=ConfigParser(delimiters=(':'))
         print(Settings.iniFilename)

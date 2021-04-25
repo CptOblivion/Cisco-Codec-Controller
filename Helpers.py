@@ -3,7 +3,7 @@ import time
 import os
 import tkinter as tk
 
-VersionNumber = '0.50' #previous: 0.46.1
+VersionNumber = '0.51' #previous: 0.50
 
 class deltaTime():
     lastTime=0

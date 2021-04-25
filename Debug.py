@@ -1,6 +1,9 @@
 from Helpers import *
+from Settings import Settings
+import traceback
 
 class debug():
+    logfileName = 'Error_Log.txt'
     #turning this to True will force the UI to always show Camera 2 and 3 as connected
     forceCameraConnection = False
     
@@ -10,6 +13,16 @@ class debug():
     def print(message):
         if (Settings.printCodecResponse.get()):
             print(message)
+    def writeErrorLog():
+        #message=sys.exc_info()
+        #TODO: properly handle traceback
+        print('crash error:')
+
+        with open(debug.logfileName, 'w') as logfile:
+            #traceback.print_exception(message[0], message[1], message[2], file=logfile)
+            traceback.print_exc()
+            traceback.print_exc(file=logfile)
+            logfile.close()
 class DummySSH():
     UseDummy=False
     dummyPresetData=('* PresetListResult Preset 1 CameraId: 1\n'
