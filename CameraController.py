@@ -898,9 +898,11 @@ class CameraController():
                     print('\n\nusername or password mismatch!')
                 except paramiko.ssh_exception.NoValidConnectionsError:
                     print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
+                except TimeoutError:
+                    print('\n\nSSH timeout! No device found.')
                 except:
                     #TODO: 
-                    print("Connection Exception:", sys.exc_info()[0])
+                    print("Unhandled Connection Exception:", sys.exc_info()[0])
                 else:
                     connected=True
                 if (connected):
@@ -908,15 +910,19 @@ class CameraController():
                     while not (self.shell.recv_ready()):
                             time.sleep(1)
                     out = self.shell.recv(9999).decode('ascii')
-                    matchString=['Welcome to',
-                                 'Cisco Codec Release']
                     print(out)
-                    for match in matchString:
-                        if (match not in out):
-                            #TODO: this is probably not very reliable
-                            print ( 'connected to wrong device??')
-                            connected=False
-                            break
+                    #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
+                    #TODO: also, check if codec login message is different on various firmwares
+                    #TODO: also also, add override option in settings
+
+                    #matchString=['Welcome to',
+                    #             'Cisco Codec Release']
+                    #for match in matchString:
+                    #    if (match not in out):
+                    #        print ( 'connected to wrong device??')
+                    #        connected=False
+                    #        #TODO: close SSH session
+                    #        break
             if (connected):
                 StartFrame.destroy()
                 self.PopulateButtons()
