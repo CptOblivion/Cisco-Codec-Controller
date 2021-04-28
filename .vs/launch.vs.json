@@ -6,7 +6,7 @@
         "type": "python",
         "interpreter": "(default)",
         "interpreterArguments": "",
-        "scriptArguments": "", //DummySSH
+        "scriptArguments": "DummySSH", //DummySSH
         "env": {},
         "nativeDebug": false,
         "webBrowserUrl": "",

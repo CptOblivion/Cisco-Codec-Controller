@@ -658,11 +658,11 @@ class CameraController():
             Frame_Presets.pack(side='left', fill='both', padx=self.PadInt, pady=self.PadInt, expand=True)
             Frame_SetupPanel.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
 
-        def weightToggle(state): #TODO: move to root of class
+        def weightToggle(state): #TODO: move to root of class?
             if (state):
-                self.window.rowconfigure(1, weight=0)
-            else:
                 self.Frame_CustomCommands.frameConfigureCommand(self.Frame_CustomCommands)
+            else:
+                self.window.rowconfigure(1, weight=0)
 
         Frame_CustomCommandsParent = ToggleFrame(self.window, title='Custom commands', togglePin='left',
                                                  buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
