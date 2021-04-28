@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "CameraController.py", line 1366, in <module>
+  File "CameraController.py", line 1193, in main
+NameError: name 'CrashHerePlease' is not defined
+
+
+<attribute 'year' of 'datetime.date' objects>/<attribute 'month' of 'datetime.date' objects>/<attribute 'day' of 'datetime.date' objects> <attribute 'hour' of 'datetime.datetime' objects>:<attribute 'minute' of 'datetime.datetime' objects>:<attribute 'second' of 'datetime.datetime' objects>
+Traceback (most recent call last):
+  File "CameraController.py", line 1371, in <module>
+  File "CameraController.py", line 1198, in main
+NameError: name 'CRASHMEPLEASE' is not defined
+
+
+21/04/27 13:23:26
+Traceback (most recent call last):
+  File "CameraController.py", line 1371, in <module>
+  File "CameraController.py", line 1198, in main
+NameError: name 'CRASHMEPLEASE' is not defined

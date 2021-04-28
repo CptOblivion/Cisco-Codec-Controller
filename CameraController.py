@@ -3,7 +3,6 @@ import pygame
 import pygame.midi
 import pygame.joystick
 import math
-from configparser import ConfigParser
 from copy import deepcopy
 
 from Camera import *
@@ -11,6 +10,7 @@ from Helpers import *
 from UI import *
 from Bindings import *
 from Debug import *
+from Settings import *
 
 #Note to self: F9 on a line to set a breakpoint
 
@@ -32,6 +32,8 @@ class CameraController():
 
         self.window = tk.Tk()
         self.window.title('Cisco Codec Controller XD Deluxe 9000 👌👏😁👍')
+
+        Settings.initializeSettings()
 
         #Pan: 0-816
         #Tilt: 0-212
@@ -128,8 +130,7 @@ class CameraController():
         
         Settings.openConfig()
         
-        self.printCodecResponse=tk.IntVar()
-        self.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
+        Settings.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
 
         self.parseBindings(Settings.config['Startup']['Bindings'])
 
@@ -657,11 +658,11 @@ class CameraController():
             Frame_Presets.pack(side='left', fill='both', padx=self.PadInt, pady=self.PadInt, expand=True)
             Frame_SetupPanel.pack(side='left', fill='y', padx=self.PadInt, pady=self.PadInt)
 
-        def weightToggle(state):
+        def weightToggle(state): #TODO: move to root of class?
             if (state):
-                self.window.rowconfigure(1, weight=0)
-            else:
                 self.Frame_CustomCommands.frameConfigureCommand(self.Frame_CustomCommands)
+            else:
+                self.window.rowconfigure(1, weight=0)
 
         Frame_CustomCommandsParent = ToggleFrame(self.window, title='Custom commands', togglePin='left',
                                                  buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
@@ -733,7 +734,7 @@ class CameraController():
                 else:
                     command=bindables.index[commandIndex]
 
-                def addBinding(binding):
+                def addBinding(binding): #TODO: move to root of class
                     if (presetName is not None):
                         binding.bindablePreset=presetName
                     return binding
@@ -769,7 +770,7 @@ class CameraController():
         inputRouting.bindListenCancelSafe()
 
     def toggleCodecDebugPrints(self):
-        Settings.config['Startup']['PrintFullCodecResponse']=str(self.printCodecResponse.get())
+        Settings.config['Startup']['PrintFullCodecResponse']=str(Settings.printCodecResponse.get())
         Settings.SaveConfig()
 
     noDisable=('Frame', 'Labelframe', 'Scrollbar', 'Toplevel', 'Canvas')
@@ -795,7 +796,7 @@ class CameraController():
                 self.enableFrame(child)
 
     def OpenSettingsMenu(self):
-        def SaveBindings():
+        def SaveBindings(): #TODO: move to root of class
             bindingString = ''
             for command in tempBinds:
                 for child in command.BindingList.winfo_children():
@@ -815,7 +816,7 @@ class CameraController():
 
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
-                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=self.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=Settings.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
 
             bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 
@@ -831,7 +832,7 @@ class CameraController():
                     categoryFrame.pack(fill='x', expand=True)
                     categoryFrame=categoryFrame.contentFrame
                     if (key == bindables.bindingPresets):
-                        def addNewPreset(frame):
+                        def addNewPreset(frame): #TODO: move to root of class
                             newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed', bindables.index[key], 'unnamed', tempBinds, newBinding=True)
                             newPanel.pack(fill='x', expand=True)
                             tempBinds.append(newPanel)
@@ -875,39 +876,66 @@ class CameraController():
 
     def PopulateStartScreen(self):
         def SSHConnect():
+            connected=False
 
             Settings.config['Startup']['IPADDRESS'] = AddressField.get()
             Settings.config['Startup']['USERNAME'] = UsernameField.get()
             Settings.config['Startup']['PASSWORD'] = PasswordField.get()
 
             Settings.SaveConfig()
-            if (not DummySSH.UseDummy):
+            if (DummySSH.UseDummy):
+                self.shell=DummySSH()
+                connected=True
+            else:
                 print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
 
+                try:
+                    self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'],
+                                     username=Settings.config['Startup']['USERNAME'],
+                                     password=Settings.config['Startup']['PASSWORD'])
+                except paramiko.ssh_exception.BadAuthenticationType:
+                    #TODO: feedback in main window
+                    print('\n\nusername or password mismatch!')
+                except paramiko.ssh_exception.NoValidConnectionsError:
+                    print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
+                except TimeoutError:
+                    print('\n\nSSH timeout! No device found.')
+                except:
+                    #TODO: 
+                    print("Unhandled Connection Exception:", sys.exc_info()[0])
+                else:
+                    connected=True
+                if (connected):
+                    self.shell = self.ssh.invoke_shell()
+                    while not (self.shell.recv_ready()):
+                            time.sleep(1)
+                    out = self.shell.recv(9999).decode('ascii')
+                    print(out)
+                    #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
+                    #TODO: also, check if codec login message is different on various firmwares
+                    #TODO: also also, add override option in settings
 
-                self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'], username=Settings.config['Startup']['USERNAME'], password=Settings.config['Startup']['PASSWORD'])
-                self.shell = self.ssh.invoke_shell()
-                while not (self.shell.recv_ready()):
-                        time.sleep(1)
-                out = self.shell.recv(9999)
-                print(out.decode('ascii'))
-                #TODO: handle connection refused: wrong IP address, username/password incorrect
+                    #matchString=['Welcome to',
+                    #             'Cisco Codec Release']
+                    #for match in matchString:
+                    #    if (match not in out):
+                    #        print ( 'connected to wrong device??')
+                    #        connected=False
+                    #        #TODO: close SSH session
+                    #        break
+            if (connected):
+                StartFrame.destroy()
+                self.PopulateButtons()
+                self.FeedbackSubscribe()
+                for i in range(7):
+                    self.CameraAvailable(i+1, False)
 
-                #TODO: some sort of check to see if we're connected to the right device
-                #   look for: 'Welcome to\r\n Cisco Codec Release' and 'Login successful'
-            else:
-                self.shell=DummySSH()
-
-            StartFrame.destroy()
-            self.PopulateButtons()
-            self.FeedbackSubscribe()
-            for i in range(7):
-                self.CameraAvailable(i+1, False)
-
-            self.UpdateCameraConnectionStatus()
-            self.InitializePresetLists()
-            self.init = True
-
+                self.UpdateCameraConnectionStatus()
+                self.InitializePresetLists()
+                self.init = True
+            
+        def SSHConnectEvent(event):
+            SSHConnect()
 
         StartFrame = tk.Frame(self.window)
         if True:
@@ -920,7 +948,7 @@ class CameraController():
                 AddressField = tk.Entry(AddressFrame)
                 AddressField.insert(0,Settings.config['Startup']['IPADDRESS'])
                 AddressField.focus_set()
-                AddressField.bind('<Return>',lambda event: SSHConnect)
+                AddressField.bind('<Return>',SSHConnectEvent)
                 AddressField.pack(side='left')
 
             UsernameFrame=tk.Frame(StartFrame)
@@ -929,7 +957,7 @@ class CameraController():
 
                 UsernameField = tk.Entry(UsernameFrame)
                 UsernameField.insert(0,Settings.config['Startup']['USERNAME'])
-                UsernameField.bind('<Return>',lambda event: SSHConnect)
+                UsernameField.bind('<Return>',SSHConnectEvent)
                 UsernameField.pack(side='left')
 
             PasswordFrame=tk.Frame(StartFrame)
@@ -938,7 +966,7 @@ class CameraController():
 
                 PasswordField = tk.Entry(PasswordFrame)
                 PasswordField.insert(0,Settings.config['Startup']['PASSWORD'])
-                PasswordField.bind('<Return>',lambda event: SSHConnect)
+                PasswordField.bind('<Return>',SSHConnectEvent)
                 PasswordField.pack(side='left')
 
             EnterButton = tk.Button(StartFrame, text='Connect', command=SSHConnect)
@@ -1005,7 +1033,7 @@ class CameraController():
 
     def processController(self):
 
-        def processAxis(axisNumber, axisType, flip, threshold):
+        def processAxis(axisNumber, axisType, flip, threshold): #TODO: move to root of class
             value = controller.get_axis(axisNumber)
             if (threshold==1): threshold=.999
             
@@ -1024,7 +1052,7 @@ class CameraController():
             self.inputDevicesControllersLastVals['axis'][a] = value
             return (changed,value, changedButton)
         
-        def checkButton(buttonNumber):
+        def checkButton(buttonNumber): #TODO: move to root of class
             value = controller.get_button(buttonNumber)
             changed = value != self.inputDevicesControllersLastVals['button'][buttonNumber]
             self.inputDevicesControllersLastVals['button'][buttonNumber] = value
@@ -1102,7 +1130,7 @@ class CameraController():
 
     def ProcessMidi(self):
 
-        def checkInputValidity(bind):
+        def checkInputValidity(bind): #TODO: move to root of class?
             return ((not bind.midiDevice or bind.midiDevice ==self.inputDevicesMidiNames[deviceIndex])
                     and (not bind.midiChannel or bind.midiChannel == channel))
 
@@ -1324,6 +1352,24 @@ class CameraController():
 
 #start the actual program
 if __name__ == '__main__':
-    programMain = CameraController()
-    while True:
-        programMain.main()
+
+    if (not hasattr(sys, '_MEIPASS')):
+        #in the dev environment, let exceptions happen normally
+        print('\n~~~~~ running in dev environment ~~~~~\n\n')
+        programMain = CameraController()
+        while True:
+            programMain.main()
+    else:
+        #in the bundled exe:
+        #   * catch all exceptions
+        #   * write them to the console and a log file
+        #   * exit properly so pyinstaller can clean up temp files
+        programMain = CameraController()
+        while True:
+            try:
+                programMain.main()
+            except tk.TclError:
+                sys.exit('Window closed, quitting')
+            except:
+                debug.writeErrorLog()
+                sys.exit('Error log written, quitting')

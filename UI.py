@@ -95,7 +95,7 @@ class ToggleFrame(tk.Frame):
             self.open.set(0)
             if (self.ToggleCommand): self.ToggleCommand(False)
         else: #the menu is closed and we're opening it
-            self.contentFrame.pack(ipady=2, ipadx=2, padx=self.contentPadx, pady=3, fill='both')
+            self.contentFrame.pack(ipady=2, ipadx=2, padx=self.contentPadx, pady=3, fill='both', expand=True)
             if (not self.KeepTitle): self.title.pack(side='left')
             self.expandButton.configure(text=self.ButtonHideText)
             self.open.set(1)
