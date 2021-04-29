@@ -3,6 +3,7 @@ import pygame
 import pygame.midi
 import pygame.joystick
 import math
+import re
 from copy import deepcopy
 
 from Camera import *
@@ -22,9 +23,6 @@ class CameraController():
             if (arg=='DebugCam'):
                 debug.forceCameraConnection=True
                 print('forcing debug cameras on')
-            elif (arg=='Verbose'):
-                debug.verbosePrints=True
-                debug.print('verbose printing on')
             elif (arg=='DummySSH'):
                 DummySSH.UseDummy=True
 
@@ -33,7 +31,7 @@ class CameraController():
         self.window = tk.Tk()
         self.window.title('Cisco Codec Controller XD Deluxe 9000 👌👏😁👍')
 
-        Settings.initializeSettings()
+        #Settings.initializeSettings()
 
         #Pan: 0-816
         #Tilt: 0-212
@@ -125,12 +123,13 @@ class CameraController():
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.SettingsMenu= None
         self.SettingsMenuOld = None
+
+        Settings.openConfig()
         
         self.loadControls()
         
-        Settings.openConfig()
         
-        Settings.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
+        #Settings.printVerbose.set(int(Settings.config['Startup']['MuteCodecResponse']))
 
         self.parseBindings(Settings.config['Startup']['Bindings'])
 
@@ -183,13 +182,13 @@ class CameraController():
         if (not CamNumber): CamNumber = Camera.selectedNum
         message = 'xCommand Camera ' + message + ' CameraID:' + str(CamNumber)
         self.shell.send(message+'\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
     def xConfiguration(self,message, CamNumber = None):
         if (not CamNumber): CamNumber = Camera.selectedNum
         message='xConfiguration Cameras Camera ' + str(CamNumber) + ' ' + message
         self.shell.send(message+'\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
     def FeedbackSubscribe(self):
         self.FeedbackUpdate(None, 1)
@@ -213,7 +212,7 @@ class CameraController():
         message = message.replace(self.PrefabConfigCurrentCamera, 'Camera ' + str(Camera.selectedNum))
 
         self.shell.send(message + '\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
         
     def toggleAllPresetEditStates(self, state):
@@ -229,9 +228,14 @@ class CameraController():
                 child.filter()
         filterConnectedStatus=self.PresetsFilteredConnected.get()
         filterCurrentStatus=self.PresetsFilteredCurrent.get()
-        for i in range(1,len(self.presetAddButtons)):
+        if (not filterConnectedStatus):
+            self.presetAddButtons[0].pack(padx=5)
+            self.presetAddButtons[0].master.grid(column=0, row=0, sticky='nsew')
+        else:
+            self.presetAddButtons[0].forget()
+        for i in range(1, len(self.presetAddButtons)):
 
-            if (self.cameras[i].connected):
+            if (not filterConnectedStatus and self.cameras[i].connected):
                 self.presetAddButtons[i].pack(padx=5)
             else:
                 self.presetAddButtons[i].forget()
@@ -251,25 +255,38 @@ class CameraController():
         self.Frame_PresetsContainer.contents.update_idletasks()
         self.Frame_PresetsContainer.onFrameConfigure(None)
 
-
-    def ListPresetsCamera(self):
+    def ListPresets(self):
         self.shell.send('xCommand Camera Preset List\n')
+        self.shell.send('xStatus Preset\n')
 
     def CreateNewPreset(self, camNum):
-        if (camNum==None): camNum=Camera.selectedNum
-        self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "Unnamed"\n')
+        if (camNum is None): camNum=Camera.selectedNum
+        if (camNum == 0):
+            #TODO: add several presets: weird behavior where it overwrites the first preset every time
+            #TODO: recall preset position is wrong?
+            for presetNum in range(1,16):
+                if(self.CamerasPresets[presetNum]==None):
+                    print (presetNum)
+                    presetName='Global Preset ' + str(presetNum)
+                    self.shell.send('xCommand Preset Store PresetId: '
+                                    + str(presetNum) + ' Type:Camera Description: "'+presetName+'"\n')
+                    break
+        else:
+            self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "Unnamed"\n')
 
     def InitializePresetLists(self):
-        print('initializing presets')
+        debug.print('(re)initializing presets')
+        for container in self.CameraPresets:
+            if (container): container.destroy()
         self.CameraPresets=[]
         for i in range(36):
             self.CameraPresets.append(None)
-        if (self.Frame_PresetsContainer):
-            for child in self.Frame_PresetsContainer.contents.winfo_children():
-                if (isinstance(child, CameraPresetPanel)):
-                    child.destroy()
+        for container in self.CamerasPresets:
+            if (container): container.destroy()
         self.CamerasPresets=[]
-        self.ListPresetsCamera()
+        for i in range(16):
+            self.CamerasPresets.append(None)
+        self.ListPresets()
 
     def StartMove(self, X, Y):
         if True:#(CameraPanning == CameraTilting == False):
@@ -320,10 +337,10 @@ class CameraController():
 
     def CenterCamera(self):
         self.xCommand('PositionReset')
-        if (self.CameraPan != self.CameraPanCenter): self.PanningStart()
-        if (self.CameraTilt != self.CameraTiltCenter): self.TiltingStart()
-        if (self.CameraZoom != self.CameraZoomCenter): self.ZoomingStart()
-        if (self.CameraFocus != self.CameraFocusCenter): self.FocusingStart() #check if focus is manual before doing this
+        if (Camera.selected.position[0] != self.CameraPanCenter): self.PanningStart()
+        if (Camera.selected.position[1] != self.CameraTiltCenter): self.TiltingStart()
+        if (Camera.selected.position[2] != self.CameraZoomCenter): self.ZoomingStart()
+        #if (Camera.selected.position[3] != self.CameraFocusCenter): self.FocusingStart() #check if focus is manual before doing this
 
     def ZoomIn(self, discard):self.xCommand('Ramp Zoom:In ZoomSpeed:' + str(self.ZoomSpeed.get()))
     def ZoomOut(self, discard):self.xCommand('Ramp Zoom:Out ZoomSpeed:' + str(self.ZoomSpeed.get()))
@@ -431,7 +448,6 @@ class CameraController():
 
     def DeleteCustomCommand(self, frame):
         index = frame.master.winfo_children().index(frame)
-        print('Deleting ' + str(index))
         #command = UserPrefabCommands[index]
         del self.UserPrefabCommands[index]
         self.PrefabCommandsList.delete(index + self.PrefabCommandCustomStart)
@@ -547,24 +563,29 @@ class CameraController():
             if True:
                 Frame_PresetsToolbar = tk.Frame(Frame_Presets)
                 if True:
-                    #TODO: maybe instead of the show all cameras check button, maybe the lock/unlock toggle should show/hide disconnected cameras
-                    #(no need to see presets on disconnected cameras unless you're editing them, after all)
                     self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar,
-                                                                textOff=['locked', 'unlock'],textOn = ['lock','unlocked'],
+                                                                textOff=['locked', 'edit'],textOn = ['lock','editing'],
                                                                 toggleCommand=self.toggleAllPresetEditStates)
                     self.TogglePresetEdit.pack(side='left')
-                    #tk.Checkbutton(Frame_PresetsToolbar, text='show all cameras',
-                    #               variable=self.PresetsFiltered, command=self.filterPresetsCurrent).pack(side='left')
                     tk.Checkbutton(Frame_PresetsToolbar, text='only current camera',
                                    variable=self.PresetsFilteredCurrent, command=self.filterPresetsCurrent).pack(side='left')
 
-                    tk.Button(Frame_PresetsToolbar, text = 'Reload',
+                    tk.Button(Frame_PresetsToolbar, text = 'Refresh',
                               command = self.InitializePresetLists).pack(side='right')
                 
                 self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
                 
-                self.presetAddButtons=[None]
+                self.presetAddButtons=[]
 
+                #first column is system-wide presets
+                frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
+                tk.Label(frame_presetHeader, text='Presets').pack()
+                #packing of this button happens in Camera.onEnable()
+                self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset', command = lambda: self.CreateNewPreset(0)))
+                frame_presetHeader.grid(column=0, row=0, sticky='nsew')
+                self.Frame_PresetsContainer.contents.columnconfigure(0, weight=1)
+
+                #rest of the columns are individual camera presets
                 for i in range(1,8):
                     frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
                     tk.Label(frame_presetHeader, text='Cam '+str(i)).pack()
@@ -712,8 +733,7 @@ class CameraController():
         self.window.columnconfigure(0, weight=1)
 
     def parseBindings(self, bindingString):
-        #print (bindingString)
-        #TODO: make a class to hold all the save/load stuff, put this in it
+        #TODO: move to Settings.py
         self.commandBinds = deepcopy(self.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
         lines=bindingString.splitlines()
         bindables.bindablePresets=[]
@@ -722,7 +742,7 @@ class CameraController():
                 presetName=None
 
                 segments=line.split(',')
-                print(line)
+                debug.print(line)
                 commandIndex = segments[0]
 
                 if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
@@ -755,7 +775,6 @@ class CameraController():
                         axisNum, axisType, axisFlip = segments[2:5]
                         if (len(segments)==6): threshold = float(segments[5])
                         else: threshold=None
-                        if (threshold is not None): print(threshold)
                         self.commandBinds['controller']['axis'][int(axisNum)] = addBinding(bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
                     elif (bindingSubdevice == 'button'):
                         button = segments[2]
@@ -769,9 +788,6 @@ class CameraController():
         self.enableFrame(self.window)
         inputRouting.bindListenCancelSafe()
 
-    def toggleCodecDebugPrints(self):
-        Settings.config['Startup']['PrintFullCodecResponse']=str(Settings.printCodecResponse.get())
-        Settings.SaveConfig()
 
     noDisable=('Frame', 'Labelframe', 'Scrollbar', 'Toplevel', 'Canvas')
     def disableFrame(self,frame):
@@ -816,7 +832,12 @@ class CameraController():
 
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
-                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=Settings.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='print verbose debug',
+                               variable=Settings.printVerbose, command=Settings.toggleVerboseDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='mute codec responses',
+                               variable=Settings.muteCodecResponse, command=Settings.toggleMuteCodecPrints).pack(side='left')
+                
+
 
             bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 
@@ -910,7 +931,7 @@ class CameraController():
                     while not (self.shell.recv_ready()):
                             time.sleep(1)
                     out = self.shell.recv(9999).decode('ascii')
-                    print(out)
+                    debug.printCodec(out)
                     #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
                     #TODO: also, check if codec login message is different on various firmwares
                     #TODO: also also, add override option in settings
@@ -984,12 +1005,12 @@ class CameraController():
         self.inputBuffer=command
 
     def refreshInputDevicesMidi(self):
-        print('midi devices:')
+        debug.print('midi devices:')
         self.inputDevicesMidis = []
         self.inputDevicesMidiNames = []
         for i in range(pygame.midi.get_count()):
             info = pygame.midi.get_device_info(i)
-            print(info)
+            debug.print(info)
             if (info[2]==1):
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
                 self.inputDevicesMidiNames.append(str(pygame.midi.get_device_info(i)[1], 'utf-8'))
@@ -998,9 +1019,9 @@ class CameraController():
                 self. inputDevicesMidiNames.append(None)
 
     def refreshInputDevicesControllers(self):
-        print ('controllers:')
+        debug.print ('controllers:')
         self.inputDevicesControllers = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
-        print(self.inputDevicesControllers)
+        debug.print(self.inputDevicesControllers)
         self.inputDevicesControllersLastVals = None
         #axis bindings are command, type, flip (where 'type' is 'stick' or 'trigger', deadzone is treated differently between the two)
         #hat bindings are a list of commands for the eight directions (call the direction's command with (1) when the hat moves to that direction, call the direction's command with (0) when the hat moves and hat last was that direction)
@@ -1009,7 +1030,6 @@ class CameraController():
         if (len(self.inputDevicesControllers)):
             controller = pygame.joystick.Joystick(0) #TODO: selector to pick which controller is active, and then a ChangeController function
             self.inputDevicesControllers.append(controller)
-            print(controller)
             self.inputDevicesControllersLastVals = { 'axis':[], 'button':[], 'hat':[] }
             for a in range(controller.get_numaxes()):
                 self.inputDevicesControllersLastVals['axis'].append(0)
@@ -1017,7 +1037,6 @@ class CameraController():
                 self.inputDevicesControllersLastVals['button'].append(False)
             for h in range(controller.get_numhats()):
                 self.inputDevicesControllersLastVals['hat'].append(None)
-            print(self.inputDevicesControllersLastVals)
 
 
     def loadControls(self):
@@ -1211,7 +1230,7 @@ class CameraController():
 
             if (self.shell.recv_ready()):
                 out=self.shell.recv(9999).decode('ascii')
-                debug.print('vvvv')
+                #if (Settings.printVerbose.get()):debug.printCodec('vvvv')
                 Responses = out.splitlines()
 
                 StartPhraseCamera = ' Camera '
@@ -1228,11 +1247,14 @@ class CameraController():
                 StartPhraseGammaMode = 'Gamma Mode: '
                 StartPhrasePresetResult = 'PresetListResult Preset '
                 StartPhrasePresetStoreResult = 'PresetStoreResult'
+                StartPhrasePresetDefinedResult=re.compile('.*Preset .* Defined: .*') #TODO: compile once at startup
+                StartPhrasePresetDescriptionResult=re.compile('.*Preset .* Description: .*') #TODO: compile once at startup
+                StartPhraseCameraConnected=re.compile('.*Camera .* Connected: .*') #TODO: compile once at startup
 
                 StartPhraseCamera = 'Camera '
 
                 for ResponseLine in Responses:
-                    print('>>' + ResponseLine)
+                    debug.printCodec('>>' + ResponseLine)
                     #TODO: turn all these calls into a more general function
                     #TODO: get the camera number referred to in ResponseLine (if applicable), check if it's the current camera
                     #TODO: handling for bad inputs (EG newline missing)
@@ -1240,7 +1262,10 @@ class CameraController():
                         if (StartPhraseCamera in ResponseLine):
                             sIndex=ResponseLine.rfind(StartPhraseCamera) + len(StartPhraseCamera)
                             cameraNumber = int(ResponseLine[sIndex])
-                        if (StartPhrasePan in ResponseLine):
+                        if (ResponseLine=='** end'):
+                            #skip all the other checks if this line is just the end command confirmation
+                            None
+                        elif (StartPhrasePan in ResponseLine):
                             sIndex = ResponseLine.rfind(StartPhrasePan) + len(StartPhrasePan)
                             value = int(ResponseLine[sIndex:])
                             self.cameras[cameraNumber].position[0]=value
@@ -1298,7 +1323,7 @@ class CameraController():
 
                         elif (StartPhrasePresetStoreResult in ResponseLine):
                             sIndex = ResponseLine.rfind(StartPhrasePresetStoreResult) + len(StartPhrasePresetStoreResult)
-                            self.ListPresetsCamera()
+                            self.InitializePresetLists()
 
                         elif (StartPhrasePresetResult in ResponseLine):
                             SplitString = ResponseLine.split()
@@ -1329,26 +1354,41 @@ class CameraController():
                                     i+=1
                                 i+=1
 
-                        elif (StartPhraseCamera in ResponseLine): #!!!!!!!!!!!!! Make sure this elif is always the last in line !!!!!!!!!!!!
-                            #(it'll catch any remaining command that includes the word 'camera')
-                            sIndex = ResponseLine.rfind(StartPhraseCamera)
-                            if (sIndex > -1):
-                                NextPhrase = ' Connected: '
-                                nIndex = ResponseLine.rfind(NextPhrase)
-                                if (nIndex == sIndex + len(StartPhraseCamera)+1):
-                                    sIndex += len(StartPhraseCamera)
-                                    camNumber = int(ResponseLine[sIndex])
-                                    nIndex += len(NextPhrase)
-                                    boolConnected = ResponseLine[nIndex:] == 'True'
-                                    if (debug.forceCameraConnection and (2 <= camNumber <= 3)): boolConnected = True #debug: force UI to think cameras 2 and 3 are always connected
-                                    self.CameraAvailable(camNumber, boolConnected)
-                                    if (Camera.selected is None):
-                                        self.cameras[camNumber].select()
-                                    debug.print('Camera ' + str(camNumber) + ' Status: ' + str(boolConnected))
-                debug.print('^^^^')
+                        elif (StartPhrasePresetDefinedResult.match(ResponseLine)):
+                            if (ResponseLine.find('True') > 0):
+                                iStart=ResponseLine.find('Preset ')+7
+                                iEnd=ResponseLine.find(' Defined')
+                                presetIndex=int(ResponseLine[iStart:iEnd])
+                                self.CamerasPresets[presetIndex]=CameraPresetPanel(self.Frame_PresetsContainer.contents, presetIndex, cameraId=0)
+                                self.shell.send('xStatus Preset '+str(presetIndex)+' Description\n')
+
+                        elif (StartPhrasePresetDescriptionResult.match(ResponseLine)):
+                            iStart=ResponseLine.find('Preset ')+7
+                            iEnd=ResponseLine.find(' Description')
+                            presetIndex=int(ResponseLine[iStart:iEnd])
+
+                            iStart=ResponseLine.find('"')
+                            iEnd=ResponseLine.rfind('"')
+
+                            if (iStart > 0):
+                                description=ResponseLine[iStart+1:iEnd]
+                                if (self.CamerasPresets[presetIndex]):
+                                    self.CamerasPresets[presetIndex].setContents(name=description)
+
+                        elif (StartPhraseCameraConnected.match(ResponseLine)):
+                            sIndex = ResponseLine.find(': ')+2
+                            boolConnected = ResponseLine[sIndex:] == 'True'
+                            
+                            #debug: force UI to think cameras 2 and 3 are always connected
+                            if (debug.forceCameraConnection and (2 <= cameraNumber <= 3)): boolConnected = True
+
+                            self.CameraAvailable(cameraNumber, boolConnected)
+                            if (Camera.selected is None):
+                                self.cameras[cameraNumber].select()
+                            debug.print('Camera ' + str(cameraNumber) + ' Status: ' + str(boolConnected))
+                #if (Settings.printVerbose.get()):debug.printCodec('^^^^')
         
         self.updateDirectValues()
-
 
 #start the actual program
 if __name__ == '__main__':
