@@ -459,7 +459,7 @@ class CameraPresetPanel(tk.Frame):
         
         self.index = index
         self.presetId=None #for global presets, index and presetID are identical and immutable
-        if (cameraId is 0): self.presetId=index
+        if (cameraId == 0): self.presetId=index
         self.cameraId=cameraId #set to 0 for Cameras instead of Camera (make sure to use "is not None" when checking if this variable is set!)
         self.name=None
         #self.listPosition=index
@@ -517,6 +517,8 @@ class CameraPresetPanel(tk.Frame):
                         + ' ListPosition: ' + str(self.index)
                         + ' Name: ' + self.presetNameEntry.get() + '\r')
         else:
+            if (self.presetNameEntry.get() != ''):
+                self.name= self.presetNameEntry.get()
             controller.current.shell.send('xCommand Preset Store PresetId: '
                                           + str(self.presetId) + ' Type:Camera Description: "'+self.name+'"\n')
             #TODO: write "all cameras" preset
@@ -525,13 +527,15 @@ class CameraPresetPanel(tk.Frame):
         return not ' ' in newValue
 
     def renamePreset(self, event):
-        #TODO: no rename for global presets, so we'll need to call the preset and then store it again
         if (self.cameraId):
             presetName=self.presetNameEntry.get()
             if (presetName):
                 controller.current.shell.send('xCommand Camera Preset Edit PresetId: ' + str(self.presetId)
                             + ' Name: ' + presetName + '\n')
                 self.presetNameLabel.config(text=presetName)
+        elif (self.cameraId == 0):
+            print('cannot rename global presets, please overwrite to save name!')
+            #TODO: popup confirming if user wants to overwrite preset
 
     def deletePreset(self):
         if (self.cameraId == 0):
@@ -572,16 +576,16 @@ class CameraPresetPanel(tk.Frame):
     def SetEditState(self, unlock):
         if (unlock):
             self.frameButtons.pack(fill='x')
-            if(self.cameraId is None or self.cameraId>0):
-                self.presetNameLabel.forget()
-                self.presetNameEntry.pack(side='left')
-            elif (self.cameraId is 0):
-                self.presetNameLabel.pack(side='left')
+            self.presetNameLabel.forget()
+            self.presetNameEntry.pack(side='left')
 
         else:
             self.frameButtons.forget()
             self.presetNameEntry.forget()
             self.presetNameLabel.pack(side='left')
+            if (self.cameraId == 0 and self.name):
+                self.presetNameEntry.delete(0,'end')
+                self.presetNameEntry.insert(0,self.name)
     
     def filter(self):
         if (self.isValid()):
@@ -612,5 +616,6 @@ class CameraPresetPanel(tk.Frame):
         if (cameraId is not None):
             self.cameraId=cameraId
         if (name is not None):
+            name=name.replace(' ','_')
             self.name=name
         self.updateContents()

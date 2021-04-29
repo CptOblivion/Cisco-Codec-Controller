@@ -189,8 +189,8 @@ class CameraController():
 
     def FeedbackSubscribe(self):
         self.FeedbackUpdate(None, 1)
-        for i in range(7):
-            self.shell.send('xfeedback register /Status/Camera[@item='' + str(i+1) + '']/Connected\n')
+        for i in range(1,8):
+            self.shell.send('xfeedback register /Status/Camera[@item="' + str(i) + '"]/Connected\n')
         #TODO: subscribe to all seven camera position statuses at once? (test if this is viable)
     def FeedbackUpdate(self, OldCam, NewCam):
         if (OldCam != None):
@@ -567,12 +567,15 @@ class CameraController():
                                                                 toggleCommand=self.toggleAllPresetEditStates)
                     self.TogglePresetEdit.pack(side='left')
                     tk.Checkbutton(Frame_PresetsToolbar, text='only current camera',
-                                   variable=self.PresetsFilteredCurrent, command=self.filterPresetsCurrent).pack(side='left')
+                                   variable=self.PresetsFilteredCurrent,
+                                   command=self.filterPresetsCurrent).pack(side='left')
 
                     tk.Button(Frame_PresetsToolbar, text = 'Refresh',
                               command = self.InitializePresetLists).pack(side='right')
                 
-                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
+                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400,
+                                                          frameConfigureCommand=lambda widget:
+                                                          self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
                 
                 self.presetAddButtons=[]
 
@@ -584,6 +587,7 @@ class CameraController():
                 self.presetAddButtons.append(tk.Frame(frame_presetHeader))
                 presetNameField=tk.Entry(self.presetAddButtons[0])
                 validation=presetNameField.register(CameraPresetPanel.validatePresetName)
+                presetNameField.insert(0,'Preset_Name')
                 presetNameField.config(validate='key', validatecommand=(validation, '%S'))
                 presetNameField.pack()
                 tk.Button(self.presetAddButtons[0], text='add preset',
