@@ -468,7 +468,7 @@ class CameraPresetPanel(tk.Frame):
         
         self.presetIdLabel = tk.Label(self.frameName)
 
-        validation=self.register(self.renamePreset)
+        validation=self.register(CameraPresetPanel.validatePresetName)
         self.presetNameLabel = tk.Label(self.frameName, text=self.name)
 
         #TODO: just do away with the name label for global presets?
@@ -521,9 +521,8 @@ class CameraPresetPanel(tk.Frame):
                                           + str(self.presetId) + ' Type:Camera Description: "'+self.name+'"\n')
             #TODO: write "all cameras" preset
 
-    def validatePresetName(self, newValue):
-        if (newValue.contains(' ')): return False
-        return True
+    def validatePresetName(newValue):
+        return not ' ' in newValue
 
     def renamePreset(self, event):
         #TODO: no rename for global presets, so we'll need to call the preset and then store it again

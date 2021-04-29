@@ -256,20 +256,22 @@ class CameraController():
         self.shell.send('xCommand Camera Preset List\n')
         self.shell.send('xStatus Preset\n')
 
-    def CreateNewPreset(self, camNum):
+    def CreateNewPreset(self, camNum, name=None):
         if (camNum is None): camNum=Camera.selectedNum
         if (camNum == 0):
             #TODO: add several presets: weird behavior where it overwrites the first preset every time
             #TODO: recall preset position is wrong?
             for presetNum in range(1,16):
                 if(self.CamerasPresets[presetNum]==None):
-                    print (presetNum)
-                    presetName='Global Preset ' + str(presetNum)
+                    if (name is None or name==''):
+                        name='Global Preset ' + str(presetNum)
                     self.shell.send('xCommand Preset Store PresetId: '
-                                    + str(presetNum) + ' Type:Camera Description: "'+presetName+'"\n')
+                                    + str(presetNum) + ' Type:Camera Description: "'+name+'"\n')
                     break
         else:
-            self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "Unnamed"\n')
+            if (name is None):
+                name='unnamed'
+            self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "'+name+'"\n')
 
     def InitializePresetLists(self):
         debug.print('(re)initializing presets')
@@ -578,16 +580,23 @@ class CameraController():
                 frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
                 tk.Label(frame_presetHeader, text='Presets').pack()
                 #packing of this button happens in Camera.onEnable()
-                self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset', command = lambda: self.CreateNewPreset(0)))
+
+                self.presetAddButtons.append(tk.Frame(frame_presetHeader))
+                presetNameField=tk.Entry(self.presetAddButtons[0])
+                validation=presetNameField.register(CameraPresetPanel.validatePresetName)
+                presetNameField.config(validate='key', validatecommand=(validation, '%S'))
+                presetNameField.pack()
+                tk.Button(self.presetAddButtons[0], text='add preset',
+                          command = lambda: self.CreateNewPreset(0, name=presetNameField.get())).pack()
                 frame_presetHeader.grid(column=0, row=0, sticky='nsew')
-                #self.Frame_PresetsContainer.contents.columnconfigure(0, weight=1)
 
                 #rest of the columns are individual camera presets
                 for i in range(1,8):
                     frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
                     tk.Label(frame_presetHeader, text='Cam '+str(i)).pack()
                     #packing of this button happens in Camera.onEnable()
-                    self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset', command = lambda i=i: self.CreateNewPreset(i)))
+                    self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset',
+                                                           command = lambda i=i: self.CreateNewPreset(i)))
                     frame_presetHeader.grid(column=i, row=0, sticky='nsew')
                     self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
                 Frame_PresetsToolbar.pack(fill='x')
@@ -602,7 +611,10 @@ class CameraController():
             if True:
                 tk.Button(Frame_SetupPanel, text='settings', command=self.OpenSettingsMenu).pack(side='top')
 
-                self.Frame_ConfigPopout = ToggleFrame(Frame_SetupPanel, title='Configuration', keepTitle=True, relief='groove', borderwidth=2, buttonShowTitle='show', buttonHideTitle='hide', toggleCommand=OptionsMenuToggle, togglePin='left').contentFrame
+                self.Frame_ConfigPopout = ToggleFrame(Frame_SetupPanel, title='Configuration', keepTitle=True,
+                                                      relief='groove', borderwidth=2, buttonShowTitle='show',
+                                                      buttonHideTitle='hide', toggleCommand=OptionsMenuToggle,
+                                                      togglePin='left').contentFrame
                 if True:
                     Frame_FocusMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
                     if True:
@@ -610,10 +622,9 @@ class CameraController():
                         frame_FocusButtons = tk.Frame(Frame_FocusMode)
                         if True:
                             
-                            configPanel.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto', command=self.SetFocusAuto)
+                            configPanel.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto',
+                                                                         command=self.SetFocusAuto)
                             configPanel.toggleFocusManual.pack(side='left')
-                            #self.ToggleFocusManual = ToggleButtonChecked(frame_FocusButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetFocusManual)
-                            #self.ToggleFocusManual.pack(side='left')
                         frame_FocusButtons.pack(fill='x')
 
                     Frame_BrightnessMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
@@ -621,13 +632,14 @@ class CameraController():
                         tk.Label(Frame_BrightnessMode, text='Brightness').pack(pady=(2,0))
                         frame_BrightnessButtons = tk.Frame(Frame_BrightnessMode)
                         if True:
-                            #self.ToggleBrightnessManual = ToggleButtonChecked(frame_BrightnessButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetBrightnessManual)
                             configPanel.ScaleBrightness = tk.Scale(frame_BrightnessButtons, from_=1, to_=31, orient='horizontal')
-                            configPanel.ScaleBrightness.bind('<ButtonPress-1>', lambda event: configPanel.ScaleBrightness.config(variable=None)) #TODO: this is supposed to unbind the vairable while we have the cursor down, so incoming updates don't move it out from under us, but it doesn't work
-                            configPanel.ScaleBrightness.bind('<ButtonRelease-1>', lambda event: self.SetBrightnessLevel(configPanel.ScaleBrightness))
+                            configPanel.ScaleBrightness.bind('<ButtonPress-1>',lambda event:
+                                                             configPanel.ScaleBrightness.config(variable=None)) #TODO: this is supposed to unbind the vairable while we have the cursor down, so incoming updates don't move it out from under us, but it doesn't work
+                            configPanel.ScaleBrightness.bind('<ButtonRelease-1>', lambda event:
+                                                             self.SetBrightnessLevel(configPanel.ScaleBrightness))
 
-                            #self.ToggleBrightnessManual.pack(side='left')
-                            configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons, text='Auto', command=self.SetBrightnessAuto)
+                            configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons,text='Auto',
+                                                                                command=self.SetBrightnessAuto)
                             configPanel.toggleBrightnessManual.pack(side='left')
                             configPanel.ScaleBrightness.pack(side='left', fill='x')
                         frame_BrightnessButtons.pack(fill='x')
@@ -638,12 +650,16 @@ class CameraController():
                         frame_WhitebalanceButtons = tk.Frame(Frame_WhitebalanceMode)
                         if True:
                             #self.ToggleWhitebalanceManual = ToggleButtonChecked(frame_WhitebalanceButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetWhitebalanceManual)
-                            configPanel.ScaleWhitebalance = tk.Scale(frame_WhitebalanceButtons, from_=1, to_=16, orient='horizontal')
-                            configPanel.ScaleWhitebalance.bind('<ButtonPress-1>', lambda event: configPanel.ScaleWhitebalance.config(variable=None))
-                            configPanel.ScaleWhitebalance.bind('<ButtonRelease-1>', lambda event: self.SetWhitebalanceLevel(configPanel.ScaleWhitebalance))
+                            configPanel.ScaleWhitebalance = tk.Scale(frame_WhitebalanceButtons,
+                                                                     from_=1, to_=16, orient='horizontal')
+                            configPanel.ScaleWhitebalance.bind('<ButtonPress-1>', lambda event:
+                                                               configPanel.ScaleWhitebalance.config(variable=None))
+                            configPanel.ScaleWhitebalance.bind('<ButtonRelease-1>', lambda event:
+                                                               self.SetWhitebalanceLevel(configPanel.ScaleWhitebalance))
 
                             #self.ToggleWhitebalanceManual.pack(side='left')
-                            configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto', command=self.SetWhitebalanceAuto)
+                            configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto',
+                                                                                command=self.SetWhitebalanceAuto)
                             configPanel.toggleWhitebalanceManual.pack(side='left')
                             configPanel.ScaleWhitebalance.pack(side='left', fill='x')
                         frame_WhitebalanceButtons.pack(fill='x')
@@ -654,10 +670,13 @@ class CameraController():
                         frame_GammaButtons = tk.Frame(Frame_GammaMode)
                         if True:
                             configPanel.ScaleGamma = tk.Scale(frame_GammaButtons, from_=0, to_=7, orient='horizontal')
-                            configPanel.ScaleGamma.bind('<ButtonPress-1>', lambda event: configPanel.ScaleGamma.config(variable=None))
-                            configPanel.ScaleGamma.bind('<ButtonRelease-1>', lambda event: self.SetGammaLevel(configPanel.ScaleGamma))
+                            configPanel.ScaleGamma.bind('<ButtonPress-1>', lambda event:
+                                                        configPanel.ScaleGamma.config(variable=None))
+                            configPanel.ScaleGamma.bind('<ButtonRelease-1>', lambda event:
+                                                        self.SetGammaLevel(configPanel.ScaleGamma))
 
-                            configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto', command=self.SetGammaAuto)
+                            configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto',
+                                                                           command=self.SetGammaAuto)
                             configPanel.toggleGammaManual.pack(side='left')
                             configPanel.ScaleGamma.pack(side='left', fill='x')
                         frame_GammaButtons.pack(fill='x')
@@ -686,15 +705,19 @@ class CameraController():
                                                  buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
                                                  toggleCommand=weightToggle)
         self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent.contentFrame, maxHeight=400,
-                                                frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 1))
+                                                frameConfigureCommand=lambda widget:
+                                                self.UpdateWindowCellWeights(widget, 1))
         if True:
-            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame, text='Add Custom Command', relief='raised')
+            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame,
+                                                 text='Add Custom Command',relief='raised')
             Frame_CustomCommandsToolbar = tk.Frame(Frame_CustomCommandsParent.contentFrame)
             if True:
                 PrefabCommandsButton.pack()
 
                 #TODO: add a scrollbar into this
-                self.SavedPrefabCommandsView = ToggleFrame(Frame_CustomCommandsToolbar, title='Saved Commands', buttonShowTitle = 'Show Saved Commands', buttonHideTitle='Hide', relief='groove', borderwidth=2)
+                self.SavedPrefabCommandsView = ToggleFrame(Frame_CustomCommandsToolbar, title='Saved Commands',
+                                                           buttonShowTitle = 'Show Saved Commands', buttonHideTitle='Hide',
+                                                           relief='groove', borderwidth=2)
                 self.SavedPrefabCommandsView.contentFrame.configure(bg='white')
     
                 self.SavedPrefabCommandsView.pack(side='right')
@@ -705,7 +728,8 @@ class CameraController():
                 self.PrefabCommandsList.add_command(label='blank command', command=lambda:self.AddCustomCommand(''))
                 self.PrefabCommandsList.add_separator()
                 for customCommand in self.PrefabCommands:
-                    self.PrefabCommandsList.add_command(label=customCommand, command=lambda c=customCommand: self.AddCustomCommand(c))
+                    self.PrefabCommandsList.add_command(label=customCommand, command=lambda c=customCommand:
+                                                        self.AddCustomCommand(c))
 
                 self.PrefabCommandsList.add_separator()
 
@@ -714,11 +738,13 @@ class CameraController():
                 self.PrefabCommandsList.add_command(label='          Custom User Commands:', state='disabled')
                 i = 0
                 for userCommand in self.UserPrefabCommands:
-                    self.PrefabCommandsList.add_command(label=userCommand, command=lambda c=userCommand: self.AddCustomCommand(c))
+                    self.PrefabCommandsList.add_command(label=userCommand, command=lambda
+                                                        c=userCommand: self.AddCustomCommand(c))
                     Frame_Command = tk.Frame(self.SavedPrefabCommandsView.contentFrame, bg='white')
                     Frame_Command.pack(fill='x')
                     tk.Label(Frame_Command, text=userCommand,bg='white').pack(side='left')
-                    tk.Button(Frame_Command, text='Delete', command=lambda f=Frame_Command: self.DeleteCustomCommand(f)).pack(side='right')
+                    tk.Button(Frame_Command, text='Delete', command=lambda f=Frame_Command:
+                              self.DeleteCustomCommand(f)).pack(side='right')
 
                     i += 1
 
@@ -745,7 +771,8 @@ class CameraController():
                 if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
                     presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
                     commandIndex=bindables.bindingPresets
-                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName), bindables.index[bindables.bindingPresets][1])
+                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName),
+                             bindables.index[bindables.bindingPresets][1])
                     if (not presetName in bindables.bindablePresets):
                         bindables.bindablePresets.append(presetName)
                 else:
@@ -766,7 +793,7 @@ class CameraController():
                     else: midiChannel = int(midiChannel)
                     if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
                     else: inputNumber = int(inputNumber)
-                    self.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice, midiChannel, inputNumber, command, threshold=threshold)))
+                    self.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, threshold=threshold)))
                 elif (bindingDevice=='controller'):
                     if (bindingSubdevice == 'axis'):
                         axisNum, axisType, axisFlip = segments[2:5]
