@@ -576,6 +576,9 @@ class CameraPresetPanel(tk.Frame):
             if(self.cameraId is None or self.cameraId>0):
                 self.presetNameLabel.forget()
                 self.presetNameEntry.pack(side='left')
+            elif (self.cameraId is 0):
+                self.presetNameLabel.pack(side='left')
+
         else:
             self.frameButtons.forget()
             self.presetNameEntry.forget()
