@@ -419,7 +419,7 @@ class CameraController():
         CustomCommandString = ''
         for command in self.UserPrefabCommands:
             CustomCommandString += '\n' + command
-        Settings.config['User Commands'][self.CustomCommandName] = CustomCommandString
+        Settings.config['User Commands'][Settings.CustomCommandName] = CustomCommandString
 
     def SaveCustomCommand(self, frame, customCommand):
         self.PrefabCommandsList.add_command(label=customCommand, command=lambda: self.AddCustomCommand(frame, customCommand))
