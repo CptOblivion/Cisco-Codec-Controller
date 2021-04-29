@@ -23,6 +23,7 @@ class configPanel():
     None
 
 class controller():
+    #easy link to get the current CameraController instance
     current=None
 
 class inputRouting():

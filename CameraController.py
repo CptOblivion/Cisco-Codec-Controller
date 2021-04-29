@@ -1,9 +1,7 @@
-import paramiko
 import pygame
 import pygame.midi
 import pygame.joystick
 import math
-import re
 from copy import deepcopy
 
 from Camera import *
@@ -12,6 +10,7 @@ from UI import *
 from Bindings import *
 from Debug import *
 from Settings import *
+from Shell import *
 
 #Note to self: F9 on a line to set a breakpoint
 
@@ -118,9 +117,7 @@ class CameraController():
                                 'zoom':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetZoom(value))),
                                 'focus':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetFocus(value)))}
 
-        self.ssh = paramiko.SSHClient()
-        self.ssh.load_system_host_keys()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        Shell.setup()
         self.SettingsMenu= None
         self.SettingsMenuOld = None
 
@@ -583,7 +580,7 @@ class CameraController():
                 #packing of this button happens in Camera.onEnable()
                 self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset', command = lambda: self.CreateNewPreset(0)))
                 frame_presetHeader.grid(column=0, row=0, sticky='nsew')
-                self.Frame_PresetsContainer.contents.columnconfigure(0, weight=1)
+                #self.Frame_PresetsContainer.contents.columnconfigure(0, weight=1)
 
                 #rest of the columns are individual camera presets
                 for i in range(1,8):
@@ -909,28 +906,15 @@ class CameraController():
                 connected=True
             else:
                 print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
-
-                try:
-                    self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'],
+                connected=Shell.connect(hostname=Settings.config['Startup']['IPADDRESS'],
                                      username=Settings.config['Startup']['USERNAME'],
                                      password=Settings.config['Startup']['PASSWORD'])
-                except paramiko.ssh_exception.BadAuthenticationType:
-                    #TODO: feedback in main window
-                    print('\n\nusername or password mismatch!')
-                except paramiko.ssh_exception.NoValidConnectionsError:
-                    print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
-                except TimeoutError:
-                    print('\n\nSSH timeout! No device found.')
-                except:
-                    #TODO: 
-                    print("Unhandled Connection Exception:", sys.exc_info()[0])
-                else:
-                    connected=True
+                
                 if (connected):
-                    self.shell = self.ssh.invoke_shell()
+                    self.shell = Shell(self)
                     while not (self.shell.recv_ready()):
                             time.sleep(1)
-                    out = self.shell.recv(9999).decode('ascii')
+                    out = self.shell.recv().decode('ascii')
                     debug.printCodec(out)
                     #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
                     #TODO: also, check if codec login message is different on various firmwares
@@ -1228,165 +1212,7 @@ class CameraController():
                     self.ConfigUpdateTimer = self.ConfigUpdateInterval
                     self.GetCameraConfig(Camera.selectedNum)
 
-            if (self.shell.recv_ready()):
-                out=self.shell.recv(9999).decode('ascii')
-                #if (Settings.printVerbose.get()):debug.printCodec('vvvv')
-                Responses = out.splitlines()
-
-                StartPhraseCamera = ' Camera '
-                StartPhrasePan = 'Position Pan: '
-                StartPhraseTilt = 'Position Tilt: '
-                StartPhraseZoom = 'Position Zoom: '
-                StartPhraseFocus = 'Position Focus: '
-                StartPhraseBrightnessLevel = 'Brightness Level: '
-                StartPhraseWhitebalanceLevel = 'Whitebalance Level: '
-                StartPhraseGammaLevel = 'Gamma Level: '
-                StartPhraseFocusMode = 'Focus Mode: '
-                StartPhraseBrightnessMode = 'Brightness Mode: '
-                StartPhraseWhitebalanceMode = 'Whitebalance Mode: '
-                StartPhraseGammaMode = 'Gamma Mode: '
-                StartPhrasePresetResult = 'PresetListResult Preset '
-                StartPhrasePresetStoreResult = 'PresetStoreResult'
-                StartPhrasePresetDefinedResult=re.compile('.*Preset .* Defined: .*') #TODO: compile once at startup
-                StartPhrasePresetDescriptionResult=re.compile('.*Preset .* Description: .*') #TODO: compile once at startup
-                StartPhraseCameraConnected=re.compile('.*Camera .* Connected: .*') #TODO: compile once at startup
-
-                StartPhraseCamera = 'Camera '
-
-                for ResponseLine in Responses:
-                    debug.printCodec('>>' + ResponseLine)
-                    #TODO: turn all these calls into a more general function
-                    #TODO: get the camera number referred to in ResponseLine (if applicable), check if it's the current camera
-                    #TODO: handling for bad inputs (EG newline missing)
-                    if (ResponseLine.startswith('*')):
-                        if (StartPhraseCamera in ResponseLine):
-                            sIndex=ResponseLine.rfind(StartPhraseCamera) + len(StartPhraseCamera)
-                            cameraNumber = int(ResponseLine[sIndex])
-                        if (ResponseLine=='** end'):
-                            #skip all the other checks if this line is just the end command confirmation
-                            None
-                        elif (StartPhrasePan in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhrasePan) + len(StartPhrasePan)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[0]=value
-                            self.LabelPan.config(text = 'Pan: ' + str(value))
-                            self.PanningDone()
-
-                        elif (StartPhraseTilt in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseTilt) + len(StartPhraseTilt)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[1]=value
-                            self.LabelTilt.config(text = 'Tilt: ' + str(value))
-                            self.TiltingDone()
-                    
-                        elif (StartPhraseZoom in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseZoom) + len(StartPhraseZoom)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[2]=value
-                            self.LabelZoom.config(text = 'Zoom: ' + str(value))
-                            self.ZoomingDone()
-                    
-                        elif (StartPhraseFocus in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseFocus) + len(StartPhraseFocus)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[3]=value
-                            self.LabelFocus.config(text = 'Focus: ' + str(value))
-                            self.FocusingDone()
-                    
-                        elif (StartPhraseBrightnessLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseBrightnessLevel) + len(StartPhraseBrightnessLevel)
-                            self.cameras[cameraNumber].brightnessValue.set(int(ResponseLine[sIndex:]))
-                    
-                        elif (StartPhraseWhitebalanceLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseWhitebalanceLevel) + len(StartPhraseWhitebalanceLevel)
-                            self.cameras[cameraNumber].whitebalanceValue.set(int(ResponseLine[sIndex:]))
-                            
-                        elif (StartPhraseGammaLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseGammaLevel) + len(StartPhraseGammaLevel)
-                            self.cameras[cameraNumber].gammaValue.set(int(ResponseLine[sIndex:]))
-
-                        elif (StartPhraseFocusMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseFocusMode) + len(StartPhraseFocusMode)
-                            self.cameras[cameraNumber].focusManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhraseBrightnessMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseBrightnessMode) + len(StartPhraseBrightnessMode)
-                            self.cameras[cameraNumber].brightnessManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhraseWhitebalanceMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseWhitebalanceMode) + len(StartPhraseWhitebalanceMode)
-                            self.cameras[cameraNumber].whitebalanceManual.set(ResponseLine[sIndex:]=='Auto')
-                    
-                        elif (StartPhraseGammaMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseGammaMode) + len(StartPhraseGammaMode)
-                            self.cameras[cameraNumber].gammaManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhrasePresetStoreResult in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhrasePresetStoreResult) + len(StartPhrasePresetStoreResult)
-                            self.InitializePresetLists()
-
-                        elif (StartPhrasePresetResult in ResponseLine):
-                            SplitString = ResponseLine.split()
-                            i=0
-                            while i < len(SplitString):
-                                if (SplitString[i] == 'PresetListResult' and SplitString[i+1] == 'Preset'):
-                                    PresetIndex = int(SplitString[i+2])
-                                    if (self.CameraPresets[PresetIndex] == None):
-                                        self.CameraPresets[PresetIndex] = CameraPresetPanel(self.Frame_PresetsContainer.contents, PresetIndex)
-                                        debug.print('added preset at index ' + str(PresetIndex))
-                                    i+=2
-                                elif (SplitString[i] == 'Name:'):
-                                    nameString = SplitString[i+1]
-                                    i+=2
-                                    while i < len(SplitString): #keep adding to name until the end of the line
-                                        nameString += ' ' + SplitString[i]
-                                        i+= 1
-                                    self.CameraPresets[PresetIndex].setContents(name = nameString[1:len(nameString)-1]) #trim quotes
-                                    debug.print('added name "' + self.CameraPresets[PresetIndex].name + '" at index ' + str(PresetIndex))
-                                    i+=1
-                                elif (SplitString[i] == 'CameraId:'):
-                                    self.CameraPresets[PresetIndex].setContents(cameraId = int(SplitString[i+1]))
-                                    debug.print('added cameraId ' + str(self.CameraPresets[PresetIndex].cameraId) + ' at index ' + str(PresetIndex))
-                                    i+=1
-                                elif (SplitString[i] == 'PresetId:'):
-                                    self.CameraPresets[PresetIndex].setContents(presetId = int(SplitString[i+1]))
-                                    debug.print('added Id ' + str(self.CameraPresets[PresetIndex].presetId) + ' at index ' + str(PresetIndex))
-                                    i+=1
-                                i+=1
-
-                        elif (StartPhrasePresetDefinedResult.match(ResponseLine)):
-                            if (ResponseLine.find('True') > 0):
-                                iStart=ResponseLine.find('Preset ')+7
-                                iEnd=ResponseLine.find(' Defined')
-                                presetIndex=int(ResponseLine[iStart:iEnd])
-                                self.CamerasPresets[presetIndex]=CameraPresetPanel(self.Frame_PresetsContainer.contents, presetIndex, cameraId=0)
-                                self.shell.send('xStatus Preset '+str(presetIndex)+' Description\n')
-
-                        elif (StartPhrasePresetDescriptionResult.match(ResponseLine)):
-                            iStart=ResponseLine.find('Preset ')+7
-                            iEnd=ResponseLine.find(' Description')
-                            presetIndex=int(ResponseLine[iStart:iEnd])
-
-                            iStart=ResponseLine.find('"')
-                            iEnd=ResponseLine.rfind('"')
-
-                            if (iStart > 0):
-                                description=ResponseLine[iStart+1:iEnd]
-                                if (self.CamerasPresets[presetIndex]):
-                                    self.CamerasPresets[presetIndex].setContents(name=description)
-
-                        elif (StartPhraseCameraConnected.match(ResponseLine)):
-                            sIndex = ResponseLine.find(': ')+2
-                            boolConnected = ResponseLine[sIndex:] == 'True'
-                            
-                            #debug: force UI to think cameras 2 and 3 are always connected
-                            if (debug.forceCameraConnection and (2 <= cameraNumber <= 3)): boolConnected = True
-
-                            self.CameraAvailable(cameraNumber, boolConnected)
-                            if (Camera.selected is None):
-                                self.cameras[cameraNumber].select()
-                            debug.print('Camera ' + str(cameraNumber) + ' Status: ' + str(boolConnected))
-                #if (Settings.printVerbose.get()):debug.printCodec('^^^^')
+            self.shell.checkResponses()
         
         self.updateDirectValues()
 
