@@ -2,23 +2,6 @@
 
 This project is for controlling these cool cameras that my brother and dad have.
 
-To build windows executable:
-* install pyinstaller (py -m pip install pyinstaller)
-* run pyinstaller.bat from project directory 
-
-To install the SSH package, use:
-    Windows:
-        'py -m pip install paramiko'
-        'py -m pip install pygame'
-
-    Mac: (replace X.X with the version number)
-        'pythonX.X -m pip install paramiko'
-        'pythonX.X -m pip install pygame'
-
-    Linux: (untested)
-
-
-(at some point in the future) to run locally, clone this repo and run `docker compose` or like `make backend` or something.
 
 **Roadmap** *(not organized)***:**
 
