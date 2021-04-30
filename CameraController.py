@@ -2,7 +2,6 @@ import pygame
 import pygame.midi
 import pygame.joystick
 import math
-from copy import deepcopy
 
 from Camera import *
 from Helpers import *
@@ -85,22 +84,6 @@ class CameraController():
         self.inputBuffer = None
         self.inputBufferTime = self.inputBufferTimer = .05 #TODO: make configurable
 
-        self.commandBindsEmpty={
-            'midi':{
-                'note': [], #note binds are deviceName, channel, note
-                'control':[]}, #control binds are deviceName, channel, CC#
-            'controller':{
-                'button':[], #button binds are buttonNum
-                'axis':[], #axis binds are axisNum, axisType, flip
-                'hat':[]}} #hat bindings are hatNum, hatDirection
-
-        for i in range(20): #space for 20 buttons, 20 axes
-            self.commandBindsEmpty['controller']['button'].append(None)
-            self.commandBindsEmpty['controller']['axis'].append(None)
-        for i in range(4): #4 hats (8 directions each)
-            self.commandBindsEmpty['controller']['hat'].append([None,None,None,None,None,None,None,None])
-
-        self.commandBinds={}
         self.inputDevicesMidis = []
         self.inputDevicesMidiNames=[]
         self.inputDevicesControllers = []
@@ -124,11 +107,8 @@ class CameraController():
         Settings.openConfig()
         
         self.loadControls()
-        
-        
-        #Settings.printVerbose.set(int(Settings.config['Startup']['MuteCodecResponse']))
 
-        self.parseBindings(Settings.config['Startup']['Bindings'])
+        Settings.parseBindings(Settings.config['Startup']['Bindings'])
 
         UserPrefabCommandsTemp = Settings.config['User Commands'][Settings.CustomCommandName].splitlines()
         for command in UserPrefabCommandsTemp:
@@ -770,64 +750,6 @@ class CameraController():
         Frame_CustomCommandsParent.grid(column=0, row=1, padx=self.PadExt, pady=self.PadExt, sticky='nsew')
         self.window.columnconfigure(0, weight=1)
 
-    def parseBindings(self, bindingString):
-        #TODO: move to Settings.py
-        self.commandBinds = deepcopy(self.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
-        lines=bindingString.splitlines()
-        bindables.bindablePresets=[]
-        for line in lines:
-            if line:
-                presetName=None
-
-                segments=line.split(',')
-                debug.print(line)
-                commandIndex = segments[0]
-
-                if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
-                    presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
-                    commandIndex=bindables.bindingPresets
-                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName),
-                             bindables.index[bindables.bindingPresets][1])
-                    if (not presetName in bindables.bindablePresets):
-                        bindables.bindablePresets.append(presetName)
-                else:
-                    command=bindables.index[commandIndex]
-
-                def addBinding(binding): #TODO: move to root of class
-                    if (presetName is not None):
-                        binding.bindablePreset=presetName
-                    return binding
-
-                bindingDevice, bindingSubdevice = segments[1].split('.')
-                if (bindingDevice == 'midi'):
-                    midiDevice, midiChannel, inputNumber=segments[2:5]
-                    if (len(segments) == 6): threshold=float(segments[5])
-                    else: threshold=None
-                    if (midiDevice=='any'): midiDevice = None
-                    if (midiChannel=='any'): midiChannel = None
-                    else: midiChannel = int(midiChannel)
-                    if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
-                    else: inputNumber = int(inputNumber)
-                    self.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, threshold=threshold)))
-                elif (bindingDevice=='controller'):
-                    if (bindingSubdevice == 'axis'):
-                        axisNum, axisType, axisFlip = segments[2:5]
-                        if (len(segments)==6): threshold = float(segments[5])
-                        else: threshold=None
-                        self.commandBinds['controller']['axis'][int(axisNum)] = addBinding(bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
-                    elif (bindingSubdevice == 'button'):
-                        button = segments[2]
-                        self.commandBinds['controller']['button'][int(button)] = addBinding(bindingControllerButton(command))
-                    elif (bindingSubdevice == 'hat'):
-                        hatNum, hatDirection = segments[2:]
-                        self.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(bindingControllerButton(command))
-
-    def settingsMenuClosed(self, event):
-        self.SettingsMenu=None
-        self.enableFrame(self.window)
-        inputRouting.bindListenCancelSafe()
-
-
     noDisable=('Frame', 'Labelframe', 'Scrollbar', 'Toplevel', 'Canvas')
     def disableFrame(self,frame):
         for child in frame.winfo_children():
@@ -850,19 +772,16 @@ class CameraController():
             else:
                 self.enableFrame(child)
 
+    def settingsMenuClosed(self, event):
+        self.SettingsMenu=None
+        self.enableFrame(self.window)
+        inputRouting.bindListenCancelSafe()
+
     def OpenSettingsMenu(self):
-        def SaveBindings(): #TODO: move to root of class
-            bindingString = ''
-            for command in tempBinds:
-                for child in command.BindingList.winfo_children():
-                    output = child.makeOutput(command.bindableName)
-                    if (output):
-                        bindingString += output+'\n'
-            self.parseBindings(bindingString)
-            Settings.config['Startup']['Bindings'] = bindingString
-            Settings.SaveConfig()
         if (self.SettingsMenu is None):
-            
+
+            Settings.openSettings()
+
             self.disableFrame(self.window)
 
             self.SettingsMenu = tk.Toplevel(self.window)
@@ -872,15 +791,15 @@ class CameraController():
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
                 tk.Checkbutton(debugToggleFrame, text='print verbose debug',
-                               variable=Settings.printVerbose, command=Settings.toggleVerboseDebugPrints).pack(side='left')
+                               variable=debug.printVerbose, command=Settings.toggleVerboseDebugPrints).pack(side='left')
                 tk.Checkbutton(debugToggleFrame, text='mute codec responses',
-                               variable=Settings.muteCodecResponse, command=Settings.toggleMuteCodecPrints).pack(side='left')
+                               variable=debug.muteCodecResponse, command=Settings.toggleMuteCodecPrints).pack(side='left')
                 
 
 
             bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 
-            tempBinds=[]
+            Settings.tempBinds=[]
             i=0
             categoryFrame=None
             categoryEnd=None
@@ -888,14 +807,18 @@ class CameraController():
                 if (key.startswith(bindables.bindingCategory)):
                     categoryEnd=bindables.index[key]
                     title=key[len(bindables.bindingCategory):]
-                    categoryFrame=ToggleFrame(bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title, buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3), relief='groove', borderwidth=2)
+                    categoryFrame=ToggleFrame(bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title,
+                                              buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3),
+                                              relief='groove', borderwidth=2)
                     categoryFrame.pack(fill='x', expand=True)
                     categoryFrame=categoryFrame.contentFrame
                     if (key == bindables.bindingPresets):
                         def addNewPreset(frame): #TODO: move to root of class
-                            newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed', bindables.index[key], 'unnamed', tempBinds, newBinding=True)
+                            newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed',
+                                                            bindables.index[key], 'unnamed', Settings.tempBinds,
+                                                            newBinding=True)
                             newPanel.pack(fill='x', expand=True)
-                            tempBinds.append(newPanel)
+                            Settings.tempBinds.append(newPanel)
 
                         panelSide=tk.Frame(categoryFrame)
                         panelSide.pack(side='left', fill='y')
@@ -904,8 +827,9 @@ class CameraController():
                         tk.Button(panelSide, text='+', command=lambda frame=panelBody: addNewPreset(frame)).pack()
 
                         for pkey in bindables.bindablePresets:
-                            tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey, bindables.index[key], pkey, tempBinds))
-                            tempBinds[i].pack(fill='x', expand=True)
+                            Settings.tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey,
+                                                                    bindables.index[key], pkey, Settings.tempBinds))
+                            Settings.tempBinds[i].pack(fill='x', expand=True)
                             i+=1
                         categoryFrame=None
                         categoryEnd=None
@@ -916,19 +840,22 @@ class CameraController():
                             categoryEnd=categoryFrame=None
                     else:
                         packFrame=bindingsList.contents
-                    tempBinds.append(ControlBindPanel(packFrame, key, bindables.index[key]))
-                    tempBinds[i].pack(fill='x', expand=True)
+                    Settings.tempBinds.append(ControlBindPanel(packFrame, key, bindables.index[key]))
+                    Settings.tempBinds[i].pack(fill='x', expand=True)
                     i+=1
-    
+
             frameFooter = tk.Frame(self.SettingsMenu)
             if True:
-                tk.Button(frameFooter, text='save', command=SaveBindings).pack(side='right')
+                Settings.saveButton= tk.Button(frameFooter, text='save', command=Settings.SaveBindings)#, state='disabled')
+                Settings.saveButton.pack(side='right')
+                Settings.unsavedChangesWarning=tk.Label(frameFooter, text='Unsaved Changes!')
             settingsTitle = tk.Label(self.SettingsMenu, text='Settings')
             settingsTitle.pack()
             settingsTitle.bind('<Destroy>', self.settingsMenuClosed)
             debugToggleFrame.pack(fill='x')
             bindingsList.pack(fill='both', expand=True)
             frameFooter.pack(padx=3, pady=3, fill='x')
+            Settings.comparisonString=Settings.SaveBindings(save=False)
         else:
             #TODO: remove this dumb gag
             window=tk.Toplevel(self.window)
@@ -1108,7 +1035,7 @@ class CameraController():
             controller=self.inputDevicesControllers[0]
 
             for a in range(len(self.inputDevicesControllersLastVals['axis'])):
-                binding=self.commandBinds['controller']['axis'][a]
+                binding=Settings.commandBinds['controller']['axis'][a]
                 if (self.SettingsMenu):
                     last=self.inputDevicesControllersLastVals['axis'][a]
                     value = controller.get_axis(a)
@@ -1121,7 +1048,8 @@ class CameraController():
                         if (value > triggerThreshold and not (-stickThreshold<value<stickThreshold)):
                             if (last < triggerThreshold): axisType='trigger'
                             else: axisType='stick'
-                            inputRouting.bindCommand('controller', 'axis', 'analog', (a, axisType, 1, bindables.thresholdDefaultController))
+                            inputRouting.bindCommand('controller', 'axis', 'analog',
+                                                     (a, axisType, 1, bindables.thresholdDefaultController))
                 elif (binding):
                     changed, value, changedButton = processAxis(a, binding.type, binding.flip, binding.threshold)
 
@@ -1138,10 +1066,10 @@ class CameraController():
                     changed, value = checkButton(b)
                     if (changed and value and inputRouting.settingsListenForInput):
                          inputRouting.bindCommand('controller', 'button', 'button', [b])
-                elif (self.commandBinds['controller']['button'][b]):
+                elif (Settings.commandBinds['controller']['button'][b]):
                     changed, value = checkButton(b)
                     if (changed):
-                        self.commandBinds['controller']['button'][b].callCommand(value)
+                        Settings.commandBinds['controller']['button'][b].callCommand(value)
 
             for h in range(len(self.inputDevicesControllersLastVals['hat'])):
                 hat = controller.get_hat(h)
@@ -1168,8 +1096,10 @@ class CameraController():
                                 self.hatBoundVal[h] = None
                     else:
                         #TODO: some filtering here similar to the above, but with a time delay instead of triggering on release, so diagonals can be hit and released without also triggering one of the cardinals it contains
-                        if (lastVal is not None and self.commandBinds['controller']['hat'][h][lastVal]):self.commandBinds['controller']['hat'][h][lastVal].callCommand(False)
-                        if (hat is not None and self.commandBinds['controller']['hat'][h][hat]): self.commandBinds['controller']['hat'][h][hat].callCommand(True)
+                        if (lastVal is not None and Settings.commandBinds['controller']['hat'][h][lastVal]):
+                            Settings.commandBinds['controller']['hat'][h][lastVal].callCommand(False)
+                        if (hat is not None and Settings.commandBinds['controller']['hat'][h][hat]):
+                            Settings.commandBinds['controller']['hat'][h][hat].callCommand(True)
                     self.inputDevicesControllersLastVals['hat'][h] = hat
 
 
@@ -1198,10 +1128,11 @@ class CameraController():
                         key = event[1]
                         if (self.SettingsMenu):
                             if (inputRouting.settingsListenForInput and command==eventNoteOn):
-                                inputRouting.bindCommand('midi', 'note', 'button', (self.inputDevicesMidiNames[deviceIndex], channel, key))
+                                inputRouting.bindCommand('midi', 'note', 'button',
+                                                         (self.inputDevicesMidiNames[deviceIndex], channel, key))
                         else:
                             state = command == eventNoteOn #1 for noteOn, 0 for noteOff
-                            for bind in self.commandBinds['midi']['note']:
+                            for bind in Settings.commandBinds['midi']['note']:
                                 if (checkInputValidity(bind) and bind.inputNumber == key):
                                     bind.callCommand(state)
 
@@ -1209,10 +1140,12 @@ class CameraController():
                         control = event[1]
                         if (self.SettingsMenu):
                             if (inputRouting.settingsListenForInput != None):
-                                inputRouting.bindCommand('midi', 'control', 'analog',(self.inputDevicesMidiNames[deviceIndex], channel, control, bindables.thresholdDefaultMidiCC))
+                                inputRouting.bindCommand('midi', 'control', 'analog',
+                                                         (self.inputDevicesMidiNames[deviceIndex], channel, control,
+                                                          bindables.thresholdDefaultMidiCC))
                         else:
                             value = event[2]/127 #map to 0-1
-                            for bind in self.commandBinds['midi']['control']:
+                            for bind in Settings.commandBinds['midi']['control']:
                                 if (checkInputValidity(bind) and bind.inputNumber == control):
                                     valueProcessed=max(0,(value-bind.threshold)/(1-bind.threshold))
                                     if (deviceIndex not in bind.valueLast):

@@ -1,5 +1,4 @@
 from Helpers import *
-from Settings import Settings
 import traceback
 import datetime
 
@@ -12,10 +11,10 @@ class debug():
     verbosePrints = False
 
     def print(message):
-        if (Settings.printVerbose.get()):
+        if (debug.printVerbose.get()):
             print(message)
     def printCodec(message):
-        if (not Settings.muteCodecResponse.get()):
+        if (not debug.muteCodecResponse.get()):
             print(message)
     def writeErrorLog():
         #message=sys.exc_info()

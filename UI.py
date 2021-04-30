@@ -1,6 +1,7 @@
 from Helpers import *
 from Bindings import *
 from Camera import *
+from Settings import *
 
 class ToggleButton(tk.Button):
 
@@ -148,53 +149,65 @@ class bindingFrame(tk.Frame):
         #subclass of entry to display, adjust, and error check binding inputs
         def __init__(self, parent, rules, initialValue, range=None, **args):
             tk.Entry.__init__(self, parent, **args)
-            self.bind('<FocusOut>', self.errorCheckEvent)
+            self.variable=tk.StringVar(self)
             self.bind('<FocusIn>', self.selectAll)
             self.rules=rules
-            if (initialValue is not None): self.insert(0,initialValue)
             self.range=range
-
-            self.errorCheck()
+            
+            validation=self.register(self.onChange)
+            #invalidation=self.register(self.fixValue)
+            self.config(textvariable=self.variable, validate='focusout', validatecommand=(validation, '%P'))#,invalidcommand=invalidation)
+            if (initialValue is not None): self.insert(0,initialValue)
 
         def selectAll(self, event):
             self.selection_range(0,'end')
 
-        def errorCheckEvent(self, event):
-            self.errorCheck()
-        def errorCheck(self):
-            value=self.get()
+        def onChange(self, newValue):
+            Settings.changeMade()
 
-            if (self.rules=='int'): value = self.rulesInt(value)
-            elif (self.rules=='midi'): value = self.rulesMidi(value)
-            elif (self.rules=='midiString'): value = self.rulesMidiString(value)
+            if (self.rules=='int'): return self.rulesInt(newValue)
+            elif (self.rules=='midi'): return self.rulesMidi(newValue)
+            elif (self.rules=='midiString'): return self.rulesMidiString(newValue)
+            return True
+        def fixValue(self):
+            print(self.newValue)
+            self.variable.set(self.newValue) #TODO: test if we can directly set the variable in onChange
 
-            self.delete(0,'end')
-            self.insert(0, value)
-            return self.get()
         def rulesMidi(self, input):
             #convert string into a valid midi channel (int or 'any')
             if (input != 'any'):
                 input = self._rulesInt(input)
-                if input == None: input = 'any'
-            return input
+                if input == None:
+                    input = 'any'
+                    valid=False
+                    self.variable.set(input)
+                    return False
+            return True
         def rulesMidiString(self, input):
             if (input != 'any'):
                 input = self._rulesString(input)
-                if input == None: input = 'any'
-            return input
+                if input == None:
+                    input = 'any'
+                    self.variable.set(input)
+                    return False
+            return True
         def rulesInt(self, input):
             #convert string into an int (or 0, if it's not a valid int)
             input = self._rulesInt(input)
-            if (input == None): return 0
+            if (input == None):
+                if(self.range): self.variable.set(self.range[0])
+                else: self.variable.set(0)
+                return False
 
-            if (self.range):
+            if (self.range and self.range[0] < input < self.range[1]):
                 input = max(self.range[0], min(self.range[1], input))
-
-            return input
+                self.variable.set(input)
+                return False
+            return True
         def _rulesInt(self, input):
             #helper function to parse a string as int or None
             try: return int(input)
-            except: return None 
+            except: return None
         def _rulesString(self, input):
             if (input == ''): return None
             return input
@@ -222,17 +235,24 @@ class bindingFrame(tk.Frame):
             self.deviceSubtypeLabel = tk.OptionMenu(self.titlebar, self.deviceSubtype,
                                                     bindingFrame.labelUnassignedSubdevice, command=self.changeDeviceSubtype)
             #self.deviceSubtypeLabel.pack(side='left', padx=(10,3))
-            tk.Button(self.titlebar, text='X', command=self.destroy).pack(side='right')
+            tk.Button(self.titlebar, text='X', command=self.destroySelf).pack(side='right')
         self.body=tk.Frame(self)
         self.titlebar.pack(fill='x', padx=2, pady=2)
         self.body.pack(fill='x', padx=2, pady=2)
         self.setDevice(deviceType, deviceSubtype, contents)
 
+    def destroySelf(self):
+        Settings.changeMade()
+        self.destroy()
+    def changeMade(self, value):
+        Settings.changeMade()
     def changeDeviceType(self, deviceType):
         if (self.deviceTypeLast != deviceType):
+            Settings.changeMade()
             self.setDevice(deviceType, None)
     def changeDeviceSubtype(self, deviceSubtype):
         if (self.deviceSubtypeLast != deviceSubtype):
+            Settings.changeMade()
             self.setDevice(self.deviceType.get(), deviceSubtype)
     def setDevice(self, deviceType, deviceSubtype, contents=None):
         if (self.deviceTypeLast != deviceType or self.deviceSubtypeLast != deviceSubtype):
@@ -299,7 +319,7 @@ class bindingFrame(tk.Frame):
                         else: self.contents[3].set(bindables.thresholdDefaultMidiCC)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0, to_=1, digits=3, resolution=0.01,
-                                 orient='horizontal' ).pack(side='left', padx=2, pady=2)
+                                 orient='horizontal', command=self.changeMade).pack(side='left', padx=2, pady=2)
 
                 elif (deviceType == 'controller'): 
                     if (deviceSubtype == 'axis'):
@@ -320,14 +340,14 @@ class bindingFrame(tk.Frame):
                         if (contents[2]): self.contents[2].set(contents[2])
                         else: self.contents[2].set(1)
                         tk.Checkbutton(self.body, variable=self.contents[2], text='invert', onvalue=-1, offvalue=1
-                                       ).pack(side='left', padx=2, pady=2)
+                                       , command=Settings.changeMade).pack(side='left', padx=2, pady=2)
 
                         self.contents[3] = tk.DoubleVar(self.body)
                         if (contents[3] is not None): self.contents[3].set(contents[3])
                         else: self.contents[3].set(bindables.thresholdDefaultController)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0.01, to_=1, digits=3, resolution=0.01,
-                                 orient='horizontal').pack(side='left', padx=2, pady=2)
+                                 orient='horizontal', command=self.changeMade).pack(side='left', padx=2, pady=2)
 
                     elif (deviceSubtype == 'button'):
                         #buttonNumber
@@ -359,22 +379,22 @@ class bindingFrame(tk.Frame):
             if(self.deviceType.get() == 'midi'):
                 midiDevice, midiChannel, inputNumber, threshold = self.contents
 
-                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.errorCheck() + ',' + midiChannel.errorCheck()+','+inputNumber.errorCheck()
+                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.get() + ',' + midiChannel.get()+','+inputNumber.get()
                 if (threshold is not None and threshold.get() != bindables.thresholdDefaultMidiCC): outstring += ','+str(threshold.get())
                 return outstring
         
             elif(self.deviceType.get() == 'controller'):
                 if (self.deviceSubtype.get() == 'axis'):
                     axisNum, axisType, axisFlip, threshold = self.contents
-                    outstring= commandAddress + ',controller.axis,'+axisNum.errorCheck() + ',' + axisType.get() + ','+str(axisFlip.get())
+                    outstring= commandAddress + ',controller.axis,'+axisNum.get() + ',' + axisType.get() + ','+str(axisFlip.get())
                     if (threshold.get() != bindables.thresholdDefaultController): outstring += ','+str(threshold.get())
                     return outstring
                 elif (self.deviceSubtype.get() == 'button'):
                     buttonNum=self.contents[0]
-                    return commandAddress+',controller.button,'+buttonNum.errorCheck()
+                    return commandAddress+',controller.button,'+buttonNum.get()
                 elif (self.deviceSubtype.get() == 'hat'):
                     hatNum, hatDirection = self.contents
-                    return commandAddress+',controller.hat,'+hatNum.errorCheck()+','+hatDirection.errorCheck()
+                    return commandAddress+',controller.hat,'+hatNum.get()+','+hatDirection.get()
         return None
         
 class ControlBindPanel(ToggleFrame):
@@ -409,17 +429,17 @@ class ControlBindPanel(ToggleFrame):
             return False
         
         if (command[1]=='button' or command[1]=='both'): #digital inputs can only be bound to button commands, or commands that handle their own input
-            for binding in controller.current.commandBinds['midi']['note']:
+            for binding in Settings.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',
                                     contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber))
             b=0
-            for binding in controller.current.commandBinds['controller']['button']:
+            for binding in Settings.commandBinds['controller']['button']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='controller', deviceSubtype='button', contents=[b])
                 b+=1
             h = 0
-            for hat in controller.current.commandBinds['controller']['hat']:
+            for hat in Settings.commandBinds['controller']['hat']:
                 direction=0
                 for binding in hat:
                     if (compareCommand()):
@@ -428,18 +448,19 @@ class ControlBindPanel(ToggleFrame):
                 h+=1
 
         #analog inputs can always be bound to button commands, as long as the threshold is properly set
-        for binding in controller.current.commandBinds['midi']['control']:
+        for binding in Settings.commandBinds['midi']['control']:
             if (compareCommand()):
                 self.AddBinding(deviceType='midi', deviceSubtype='control',
                                 contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber, binding.threshold))
         a=0
-        for binding in controller.current.commandBinds['controller']['axis']:
+        for binding in Settings.commandBinds['controller']['axis']:
             if (compareCommand()):
                 self.AddBinding(deviceType='controller', deviceSubtype='axis',
                                 contents=[a, binding.type,binding.flip, binding.threshold])
             a+=1
 
     def AddBinding(self, deviceType=None, deviceSubtype=None, contents=None):
+        Settings.changeMade()
         bindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
                      deviceSubtype=deviceSubtype, contents=contents).pack(fill='x', padx=2, pady=2)
 

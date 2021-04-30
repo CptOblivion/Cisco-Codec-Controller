@@ -23,27 +23,6 @@ class controller():
     #so classes can refer back to CameraController without having to deal with importing it
     current=None
 
-class inputRouting():
-    settingsListenForInput = None
-    def bindCommand(deviceType, deviceSubtype,inputType, contents):
-        commandTypeIndex = inputType=='analog' #0 if it's 'button', 1 if it's 'analog'
-        if ((commandTypeIndex==1) or inputRouting.settingsListenForInput.commandType[commandTypeIndex]): #TODO: this is a hacky holdover. Rework to a cleaner version of "button can take analog input, analog can't take digital input"
-            inputRouting.settingsListenForInput.changeDeviceType(None)
-            inputRouting.settingsListenForInput.setDevice(deviceType, deviceSubtype, contents)
-            inputRouting.bindListenCancel()
-    def bindListen(bindingFrame):
-        inputRouting.bindListenCancel()
-        inputRouting.settingsListenForInput = bindingFrame
-        bindingFrame.listenButton.config(relief='sunken')
-
-    def bindListenCancelSafe():
-        inputRouting.expectedType=None
-        inputRouting.settingsListenForInput = None
-    def bindListenCancel(): 
-        if (inputRouting.settingsListenForInput):
-            inputRouting.settingsListenForInput.listenButton.config(relief='raised')
-        inputRouting.bindListenCancelSafe()
-
 class controlDirect():
     def __init__(self, command=None, delay=.1):
         self.delayTimer = self.delay=.1
