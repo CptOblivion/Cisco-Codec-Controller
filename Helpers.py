@@ -18,12 +18,9 @@ class Assets():
         basePath=getattr(sys, '_MEIPASS', os.path.abspath('.')) #abspath(__file__) instead?
         return os.path.join(basePath, path)
 
-class configPanel():
-    #basically-empty class to drop variables in to conveniently contain access to config panel elements for access between classes
-    None
-
 class controller():
     #easy link to get the current CameraController instance
+    #so classes can refer back to CameraController without having to deal with importing it
     current=None
 
 class inputRouting():

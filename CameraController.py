@@ -256,18 +256,31 @@ class CameraController():
         self.shell.send('xCommand Camera Preset List\n')
         self.shell.send('xStatus Preset\n')
 
-    def CreateNewPreset(self, camNum, name=None):
+    def CreateNewPreset(self, camNum, nameField=None, numField=None):
+        #because it's coming from a tk.Entry, presetNum is a str (either '' or str(int))
         if (camNum is None): camNum=Camera.selectedNum
         if (camNum == 0):
             #TODO: add several presets: weird behavior where it overwrites the first preset every time
             #TODO: recall preset position is wrong?
-            for presetNum in range(1,16):
-                if(self.CamerasPresets[presetNum]==None):
-                    if (name is None or name==''):
-                        name='Global Preset ' + str(presetNum)
-                    self.shell.send('xCommand Preset Store PresetId: '
-                                    + str(presetNum) + ' Type:Camera Description: "'+name+'"\n')
-                    break
+            num=''
+            if (numField):
+                num=numField.get()
+                numField.delete(0,'end')
+            name=None
+            if (nameField):
+                name=nameField.get()
+                nameField.delete(0,'end')
+                if (hasattr(nameField, 'defaultValue')):
+                    nameField.insert(0,nameField.defaultValue)
+            if (num ==''):
+                for num in range(1,16):
+                    if(self.CamerasPresets[num]==None):
+                        num=str(num)
+                        break
+            if (name is None or name==''):
+                name='Global Preset ' + presetNum
+            self.shell.send('xCommand Preset Store PresetId: '
+                            + num + ' Type:Camera Description: "'+name+'"\n')
         else:
             if (name is None):
                 name='unnamed'
@@ -386,13 +399,13 @@ class CameraController():
         if (cameraNumber != Camera.selectedNum): self.FeedbackUpdate(Camera.selectedNum, cameraNumber)
 
         if (self.Frame_PresetsContainer): self.filterPresetsCurrent()
-        configPanel.toggleFocusManual.config(variable=Camera.selected.focusManual)
-        configPanel.toggleBrightnessManual.config(variable=Camera.selected.brightnessManual)
-        configPanel.ScaleBrightness.setVariable(Camera.selected.brightnessValue)
-        configPanel.toggleGammaManual.config(variable=Camera.selected.gammaManual)
-        configPanel.ScaleGamma.setVariable(Camera.selected.gammaValue)
-        configPanel.toggleWhitebalanceManual.config(variable=Camera.selected.whitebalanceManual)
-        configPanel.ScaleWhitebalance.setVariable(Camera.selected.whitebalanceValue)
+        self.toggleFocusManual.config(variable=Camera.selected.focusManual)
+        self.toggleBrightnessManual.config(variable=Camera.selected.brightnessManual)
+        self.ScaleBrightness.setVariable(Camera.selected.brightnessValue)
+        self.toggleGammaManual.config(variable=Camera.selected.gammaManual)
+        self.ScaleGamma.setVariable(Camera.selected.gammaValue)
+        self.toggleWhitebalanceManual.config(variable=Camera.selected.whitebalanceManual)
+        self.ScaleWhitebalance.setVariable(Camera.selected.whitebalanceValue)
         self.UpdateCameraDetails()
 
     def UpdateCameraDetails(self):
@@ -574,21 +587,37 @@ class CameraController():
                                                           frameConfigureCommand=lambda widget:
                                                           self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
                 
+                def validatePresetNumber(newValue):
+                    if (newValue==''): return True
+                    try:
+                        intval=int(newValue)
+                    except: return False
+                    return 1<=intval<=16
+
                 self.presetAddButtons=[]
 
-                #first column is system-wide presets
+                #first column is global presets
                 frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
                 tk.Label(frame_presetHeader, text='Presets').pack()
                 #packing of this button happens in Camera.onEnable()
 
                 self.presetAddButtons.append(tk.Frame(frame_presetHeader))
                 presetNameField=tk.Entry(self.presetAddButtons[0])
-                validation=presetNameField.register(CameraPresetPanel.validatePresetName)
-                presetNameField.insert(0,'Preset_Name')
-                presetNameField.config(validate='key', validatecommand=(validation, '%S'))
-                presetNameField.pack()
+                presetNameField.validation=presetNameField.register(CameraPresetPanel.validatePresetName)
+                presetNameField.defaultValue='Preset_Name'
+                presetNameField.insert(0,presetNameField.defaultValue)
+                presetNameField.config(validate='key', validatecommand=(presetNameField.validation, '%S'))
+                presetNumField=tk.Entry(self.presetAddButtons[0], width=2)
+                presetNumField.validation=presetNumField.register(validatePresetNumber)
+                presetNumField.config(validate='key',validatecommand=(presetNumField.validation, '%P'))
+                
+                presetNameField.grid(column=0, row=0, columnspan=3, sticky='nsew')
+                tk.Label(self.presetAddButtons[0],text='#').grid(column=0,row=1)
+                presetNumField.grid(column=1,row=1)
                 tk.Button(self.presetAddButtons[0], text='add preset',
-                          command = lambda: self.CreateNewPreset(0, name=presetNameField.get())).pack()
+                          command = lambda: self.CreateNewPreset(0, nameField=presetNameField,
+                                                                 numField=presetNumField)).grid(column=2, row=1)
+                self.presetAddButtons[0].columnconfigure(2,weight=1)
                 frame_presetHeader.grid(column=0, row=0, sticky='nsew')
 
                 #rest of the columns are individual camera presets
@@ -623,9 +652,9 @@ class CameraController():
                         frame_FocusButtons = tk.Frame(Frame_FocusMode)
                         if True:
                             
-                            configPanel.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto',
+                            self.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto',
                                                                          command=self.SetFocusAuto)
-                            configPanel.toggleFocusManual.pack(side='left')
+                            self.toggleFocusManual.pack(side='left')
                         frame_FocusButtons.pack(fill='x')
 
                     Frame_BrightnessMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
@@ -633,12 +662,12 @@ class CameraController():
                         tk.Label(Frame_BrightnessMode, text='Brightness').pack(pady=(2,0))
                         frame_BrightnessButtons = tk.Frame(Frame_BrightnessMode)
                         if True:
-                            configPanel.ScaleBrightness=ConfigSlider(frame_BrightnessButtons,
+                            self.ScaleBrightness=ConfigSlider(frame_BrightnessButtons,
                                                                      command=self.SetBrightnessLevel, from_=1, to_=31)
-                            configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons,text='Auto',
+                            self.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons,text='Auto',
                                                                                 command=self.SetBrightnessAuto)
-                            configPanel.toggleBrightnessManual.pack(side='left')
-                            configPanel.ScaleBrightness.pack(side='left', fill='x')
+                            self.toggleBrightnessManual.pack(side='left')
+                            self.ScaleBrightness.pack(side='left', fill='x')
                         frame_BrightnessButtons.pack(fill='x')
 
                     Frame_WhitebalanceMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
@@ -646,12 +675,12 @@ class CameraController():
                         tk.Label(Frame_WhitebalanceMode, text='White Balance').pack(pady=(2,0))
                         frame_WhitebalanceButtons = tk.Frame(Frame_WhitebalanceMode)
                         if True:
-                            configPanel.ScaleWhitebalance=ConfigSlider(frame_WhitebalanceButtons,
+                            self.ScaleWhitebalance=ConfigSlider(frame_WhitebalanceButtons,
                                                                      command=self.SetWhitebalanceLevel, from_=1, to_=16)
-                            configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto',
+                            self.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto',
                                                                                 command=self.SetWhitebalanceAuto)
-                            configPanel.toggleWhitebalanceManual.pack(side='left')
-                            configPanel.ScaleWhitebalance.pack(side='left', fill='x')
+                            self.toggleWhitebalanceManual.pack(side='left')
+                            self.ScaleWhitebalance.pack(side='left', fill='x')
                         frame_WhitebalanceButtons.pack(fill='x')
 
                     Frame_GammaMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
@@ -659,12 +688,12 @@ class CameraController():
                         tk.Label(Frame_GammaMode, text='Gamma').pack(pady=(2,0))
                         frame_GammaButtons = tk.Frame(Frame_GammaMode)
                         if True:
-                            configPanel.ScaleGamma=ConfigSlider(frame_GammaButtons,
+                            self.ScaleGamma=ConfigSlider(frame_GammaButtons,
                                                                      command=self.SetGammaLevel, from_=0, to_=7)
-                            configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto',
+                            self.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto',
                                                                            command=self.SetGammaAuto)
-                            configPanel.toggleGammaManual.pack(side='left')
-                            configPanel.ScaleGamma.pack(side='left', fill='x')
+                            self.toggleGammaManual.pack(side='left')
+                            self.ScaleGamma.pack(side='left', fill='x')
                         frame_GammaButtons.pack(fill='x')
     
             
