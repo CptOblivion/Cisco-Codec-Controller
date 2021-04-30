@@ -3,7 +3,7 @@ import time
 import os
 import tkinter as tk
 
-VersionNumber = '0.52' #previous: 0.51
+VersionNumber = '0.54' #previous: 0.53
 
 class deltaTime():
     lastTime=0
@@ -23,6 +23,7 @@ class configPanel():
     None
 
 class controller():
+    #easy link to get the current CameraController instance
     current=None
 
 class inputRouting():

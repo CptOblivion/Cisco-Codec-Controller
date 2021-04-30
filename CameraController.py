@@ -1,4 +1,3 @@
-import paramiko
 import pygame
 import pygame.midi
 import pygame.joystick
@@ -11,6 +10,7 @@ from UI import *
 from Bindings import *
 from Debug import *
 from Settings import *
+from Shell import *
 
 #Note to self: F9 on a line to set a breakpoint
 
@@ -22,9 +22,6 @@ class CameraController():
             if (arg=='DebugCam'):
                 debug.forceCameraConnection=True
                 print('forcing debug cameras on')
-            elif (arg=='Verbose'):
-                debug.verbosePrints=True
-                debug.print('verbose printing on')
             elif (arg=='DummySSH'):
                 DummySSH.UseDummy=True
 
@@ -33,7 +30,7 @@ class CameraController():
         self.window = tk.Tk()
         self.window.title('Cisco Codec Controller XD Deluxe 9000 👌👏😁👍')
 
-        Settings.initializeSettings()
+        #Settings.initializeSettings()
 
         #Pan: 0-816
         #Tilt: 0-212
@@ -120,17 +117,16 @@ class CameraController():
                                 'zoom':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetZoom(value))),
                                 'focus':controlDirect(command = lambda value: self.QueueInput(lambda: self.SetFocus(value)))}
 
-        self.ssh = paramiko.SSHClient()
-        self.ssh.load_system_host_keys()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        Shell.setup()
         self.SettingsMenu= None
         self.SettingsMenuOld = None
+
+        Settings.openConfig()
         
         self.loadControls()
         
-        Settings.openConfig()
         
-        Settings.printCodecResponse.set(int(Settings.config['Startup']['PrintFullCodecResponse']))
+        #Settings.printVerbose.set(int(Settings.config['Startup']['MuteCodecResponse']))
 
         self.parseBindings(Settings.config['Startup']['Bindings'])
 
@@ -183,18 +179,18 @@ class CameraController():
         if (not CamNumber): CamNumber = Camera.selectedNum
         message = 'xCommand Camera ' + message + ' CameraID:' + str(CamNumber)
         self.shell.send(message+'\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
     def xConfiguration(self,message, CamNumber = None):
         if (not CamNumber): CamNumber = Camera.selectedNum
         message='xConfiguration Cameras Camera ' + str(CamNumber) + ' ' + message
         self.shell.send(message+'\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
     def FeedbackSubscribe(self):
         self.FeedbackUpdate(None, 1)
-        for i in range(7):
-            self.shell.send('xfeedback register /Status/Camera[@item='' + str(i+1) + '']/Connected\n')
+        for i in range(1,8):
+            self.shell.send('xfeedback register /Status/Camera[@item="' + str(i) + '"]/Connected\n')
         #TODO: subscribe to all seven camera position statuses at once? (test if this is viable)
     def FeedbackUpdate(self, OldCam, NewCam):
         if (OldCam != None):
@@ -213,7 +209,7 @@ class CameraController():
         message = message.replace(self.PrefabConfigCurrentCamera, 'Camera ' + str(Camera.selectedNum))
 
         self.shell.send(message + '\n')
-        print('Message sent: ' + message)
+        debug.print('Message sent: ' + message)
 
         
     def toggleAllPresetEditStates(self, state):
@@ -229,9 +225,14 @@ class CameraController():
                 child.filter()
         filterConnectedStatus=self.PresetsFilteredConnected.get()
         filterCurrentStatus=self.PresetsFilteredCurrent.get()
-        for i in range(1,len(self.presetAddButtons)):
+        if (not filterConnectedStatus):
+            self.presetAddButtons[0].pack(padx=5)
+            self.presetAddButtons[0].master.grid(column=0, row=0, sticky='nsew')
+        else:
+            self.presetAddButtons[0].forget()
+        for i in range(1, len(self.presetAddButtons)):
 
-            if (self.cameras[i].connected):
+            if (not filterConnectedStatus and self.cameras[i].connected):
                 self.presetAddButtons[i].pack(padx=5)
             else:
                 self.presetAddButtons[i].forget()
@@ -251,25 +252,40 @@ class CameraController():
         self.Frame_PresetsContainer.contents.update_idletasks()
         self.Frame_PresetsContainer.onFrameConfigure(None)
 
-
-    def ListPresetsCamera(self):
+    def ListPresets(self):
         self.shell.send('xCommand Camera Preset List\n')
+        self.shell.send('xStatus Preset\n')
 
-    def CreateNewPreset(self, camNum):
-        if (camNum==None): camNum=Camera.selectedNum
-        self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "Unnamed"\n')
+    def CreateNewPreset(self, camNum, name=None):
+        if (camNum is None): camNum=Camera.selectedNum
+        if (camNum == 0):
+            #TODO: add several presets: weird behavior where it overwrites the first preset every time
+            #TODO: recall preset position is wrong?
+            for presetNum in range(1,16):
+                if(self.CamerasPresets[presetNum]==None):
+                    if (name is None or name==''):
+                        name='Global Preset ' + str(presetNum)
+                    self.shell.send('xCommand Preset Store PresetId: '
+                                    + str(presetNum) + ' Type:Camera Description: "'+name+'"\n')
+                    break
+        else:
+            if (name is None):
+                name='unnamed'
+            self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "'+name+'"\n')
 
     def InitializePresetLists(self):
-        print('initializing presets')
+        debug.print('(re)initializing presets')
+        for container in self.CameraPresets:
+            if (container): container.destroy()
         self.CameraPresets=[]
         for i in range(36):
             self.CameraPresets.append(None)
-        if (self.Frame_PresetsContainer):
-            for child in self.Frame_PresetsContainer.contents.winfo_children():
-                if (isinstance(child, CameraPresetPanel)):
-                    child.destroy()
+        for container in self.CamerasPresets:
+            if (container): container.destroy()
         self.CamerasPresets=[]
-        self.ListPresetsCamera()
+        for i in range(16):
+            self.CamerasPresets.append(None)
+        self.ListPresets()
 
     def StartMove(self, X, Y):
         if True:#(CameraPanning == CameraTilting == False):
@@ -320,10 +336,10 @@ class CameraController():
 
     def CenterCamera(self):
         self.xCommand('PositionReset')
-        if (self.CameraPan != self.CameraPanCenter): self.PanningStart()
-        if (self.CameraTilt != self.CameraTiltCenter): self.TiltingStart()
-        if (self.CameraZoom != self.CameraZoomCenter): self.ZoomingStart()
-        if (self.CameraFocus != self.CameraFocusCenter): self.FocusingStart() #check if focus is manual before doing this
+        if (Camera.selected.position[0] != self.CameraPanCenter): self.PanningStart()
+        if (Camera.selected.position[1] != self.CameraTiltCenter): self.TiltingStart()
+        if (Camera.selected.position[2] != self.CameraZoomCenter): self.ZoomingStart()
+        #if (Camera.selected.position[3] != self.CameraFocusCenter): self.FocusingStart() #check if focus is manual before doing this
 
     def ZoomIn(self, discard):self.xCommand('Ramp Zoom:In ZoomSpeed:' + str(self.ZoomSpeed.get()))
     def ZoomOut(self, discard):self.xCommand('Ramp Zoom:Out ZoomSpeed:' + str(self.ZoomSpeed.get()))
@@ -405,7 +421,7 @@ class CameraController():
         CustomCommandString = ''
         for command in self.UserPrefabCommands:
             CustomCommandString += '\n' + command
-        Settings.config['User Commands'][self.CustomCommandName] = CustomCommandString
+        Settings.config['User Commands'][Settings.CustomCommandName] = CustomCommandString
 
     def SaveCustomCommand(self, frame, customCommand):
         self.PrefabCommandsList.add_command(label=customCommand, command=lambda: self.AddCustomCommand(frame, customCommand))
@@ -431,7 +447,6 @@ class CameraController():
 
     def DeleteCustomCommand(self, frame):
         index = frame.master.winfo_children().index(frame)
-        print('Deleting ' + str(index))
         #command = UserPrefabCommands[index]
         del self.UserPrefabCommands[index]
         self.PrefabCommandsList.delete(index + self.PrefabCommandCustomStart)
@@ -547,29 +562,45 @@ class CameraController():
             if True:
                 Frame_PresetsToolbar = tk.Frame(Frame_Presets)
                 if True:
-                    #TODO: maybe instead of the show all cameras check button, maybe the lock/unlock toggle should show/hide disconnected cameras
-                    #(no need to see presets on disconnected cameras unless you're editing them, after all)
                     self.TogglePresetEdit = ToggleButtonChecked(Frame_PresetsToolbar,
-                                                                textOff=['locked', 'unlock'],textOn = ['lock','unlocked'],
+                                                                textOff=['locked', 'edit'],textOn = ['lock','editing'],
                                                                 toggleCommand=self.toggleAllPresetEditStates)
                     self.TogglePresetEdit.pack(side='left')
-                    #tk.Checkbutton(Frame_PresetsToolbar, text='show all cameras',
-                    #               variable=self.PresetsFiltered, command=self.filterPresetsCurrent).pack(side='left')
                     tk.Checkbutton(Frame_PresetsToolbar, text='only current camera',
-                                   variable=self.PresetsFilteredCurrent, command=self.filterPresetsCurrent).pack(side='left')
+                                   variable=self.PresetsFilteredCurrent,
+                                   command=self.filterPresetsCurrent).pack(side='left')
 
-                    tk.Button(Frame_PresetsToolbar, text = 'Reload',
+                    tk.Button(Frame_PresetsToolbar, text = 'Refresh',
                               command = self.InitializePresetLists).pack(side='right')
                 
-                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400, frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
+                self.Frame_PresetsContainer = ScrollFrame(Frame_Presets, maxHeight=400,
+                                                          frameConfigureCommand=lambda widget:
+                                                          self.UpdateWindowCellWeights(widget, 0, rootFrame=Frame_Main))
                 
-                self.presetAddButtons=[None]
+                self.presetAddButtons=[]
 
+                #first column is system-wide presets
+                frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
+                tk.Label(frame_presetHeader, text='Presets').pack()
+                #packing of this button happens in Camera.onEnable()
+
+                self.presetAddButtons.append(tk.Frame(frame_presetHeader))
+                presetNameField=tk.Entry(self.presetAddButtons[0])
+                validation=presetNameField.register(CameraPresetPanel.validatePresetName)
+                presetNameField.insert(0,'Preset_Name')
+                presetNameField.config(validate='key', validatecommand=(validation, '%S'))
+                presetNameField.pack()
+                tk.Button(self.presetAddButtons[0], text='add preset',
+                          command = lambda: self.CreateNewPreset(0, name=presetNameField.get())).pack()
+                frame_presetHeader.grid(column=0, row=0, sticky='nsew')
+
+                #rest of the columns are individual camera presets
                 for i in range(1,8):
                     frame_presetHeader=tk.Frame(self.Frame_PresetsContainer.contents, relief='ridge',borderwidth=1)
                     tk.Label(frame_presetHeader, text='Cam '+str(i)).pack()
                     #packing of this button happens in Camera.onEnable()
-                    self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset', command = lambda i=i: self.CreateNewPreset(i)))
+                    self.presetAddButtons.append(tk.Button(frame_presetHeader, text='add preset',
+                                                           command = lambda i=i: self.CreateNewPreset(i)))
                     frame_presetHeader.grid(column=i, row=0, sticky='nsew')
                     self.Frame_PresetsContainer.contents.columnconfigure(i, weight=1)
                 Frame_PresetsToolbar.pack(fill='x')
@@ -584,7 +615,10 @@ class CameraController():
             if True:
                 tk.Button(Frame_SetupPanel, text='settings', command=self.OpenSettingsMenu).pack(side='top')
 
-                self.Frame_ConfigPopout = ToggleFrame(Frame_SetupPanel, title='Configuration', keepTitle=True, relief='groove', borderwidth=2, buttonShowTitle='show', buttonHideTitle='hide', toggleCommand=OptionsMenuToggle, togglePin='left').contentFrame
+                self.Frame_ConfigPopout = ToggleFrame(Frame_SetupPanel, title='Configuration', keepTitle=True,
+                                                      relief='groove', borderwidth=2, buttonShowTitle='show',
+                                                      buttonHideTitle='hide', toggleCommand=OptionsMenuToggle,
+                                                      togglePin='left').contentFrame
                 if True:
                     Frame_FocusMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
                     if True:
@@ -592,10 +626,9 @@ class CameraController():
                         frame_FocusButtons = tk.Frame(Frame_FocusMode)
                         if True:
                             
-                            configPanel.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto', command=self.SetFocusAuto)
+                            configPanel.toggleFocusManual=tk.Checkbutton(frame_FocusButtons, text='Auto',
+                                                                         command=self.SetFocusAuto)
                             configPanel.toggleFocusManual.pack(side='left')
-                            #self.ToggleFocusManual = ToggleButtonChecked(frame_FocusButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetFocusManual)
-                            #self.ToggleFocusManual.pack(side='left')
                         frame_FocusButtons.pack(fill='x')
 
                     Frame_BrightnessMode = tk.Frame(self.Frame_ConfigPopout, relief='groove', borderwidth=4)
@@ -603,13 +636,14 @@ class CameraController():
                         tk.Label(Frame_BrightnessMode, text='Brightness').pack(pady=(2,0))
                         frame_BrightnessButtons = tk.Frame(Frame_BrightnessMode)
                         if True:
-                            #self.ToggleBrightnessManual = ToggleButtonChecked(frame_BrightnessButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetBrightnessManual)
                             configPanel.ScaleBrightness = tk.Scale(frame_BrightnessButtons, from_=1, to_=31, orient='horizontal')
-                            configPanel.ScaleBrightness.bind('<ButtonPress-1>', lambda event: configPanel.ScaleBrightness.config(variable=None)) #TODO: this is supposed to unbind the vairable while we have the cursor down, so incoming updates don't move it out from under us, but it doesn't work
-                            configPanel.ScaleBrightness.bind('<ButtonRelease-1>', lambda event: self.SetBrightnessLevel(configPanel.ScaleBrightness))
+                            configPanel.ScaleBrightness.bind('<ButtonPress-1>',lambda event:
+                                                             configPanel.ScaleBrightness.config(variable=None)) #TODO: this is supposed to unbind the vairable while we have the cursor down, so incoming updates don't move it out from under us, but it doesn't work
+                            configPanel.ScaleBrightness.bind('<ButtonRelease-1>', lambda event:
+                                                             self.SetBrightnessLevel(configPanel.ScaleBrightness))
 
-                            #self.ToggleBrightnessManual.pack(side='left')
-                            configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons, text='Auto', command=self.SetBrightnessAuto)
+                            configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons,text='Auto',
+                                                                                command=self.SetBrightnessAuto)
                             configPanel.toggleBrightnessManual.pack(side='left')
                             configPanel.ScaleBrightness.pack(side='left', fill='x')
                         frame_BrightnessButtons.pack(fill='x')
@@ -620,12 +654,16 @@ class CameraController():
                         frame_WhitebalanceButtons = tk.Frame(Frame_WhitebalanceMode)
                         if True:
                             #self.ToggleWhitebalanceManual = ToggleButtonChecked(frame_WhitebalanceButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetWhitebalanceManual)
-                            configPanel.ScaleWhitebalance = tk.Scale(frame_WhitebalanceButtons, from_=1, to_=16, orient='horizontal')
-                            configPanel.ScaleWhitebalance.bind('<ButtonPress-1>', lambda event: configPanel.ScaleWhitebalance.config(variable=None))
-                            configPanel.ScaleWhitebalance.bind('<ButtonRelease-1>', lambda event: self.SetWhitebalanceLevel(configPanel.ScaleWhitebalance))
+                            configPanel.ScaleWhitebalance = tk.Scale(frame_WhitebalanceButtons,
+                                                                     from_=1, to_=16, orient='horizontal')
+                            configPanel.ScaleWhitebalance.bind('<ButtonPress-1>', lambda event:
+                                                               configPanel.ScaleWhitebalance.config(variable=None))
+                            configPanel.ScaleWhitebalance.bind('<ButtonRelease-1>', lambda event:
+                                                               self.SetWhitebalanceLevel(configPanel.ScaleWhitebalance))
 
                             #self.ToggleWhitebalanceManual.pack(side='left')
-                            configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto', command=self.SetWhitebalanceAuto)
+                            configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto',
+                                                                                command=self.SetWhitebalanceAuto)
                             configPanel.toggleWhitebalanceManual.pack(side='left')
                             configPanel.ScaleWhitebalance.pack(side='left', fill='x')
                         frame_WhitebalanceButtons.pack(fill='x')
@@ -636,10 +674,13 @@ class CameraController():
                         frame_GammaButtons = tk.Frame(Frame_GammaMode)
                         if True:
                             configPanel.ScaleGamma = tk.Scale(frame_GammaButtons, from_=0, to_=7, orient='horizontal')
-                            configPanel.ScaleGamma.bind('<ButtonPress-1>', lambda event: configPanel.ScaleGamma.config(variable=None))
-                            configPanel.ScaleGamma.bind('<ButtonRelease-1>', lambda event: self.SetGammaLevel(configPanel.ScaleGamma))
+                            configPanel.ScaleGamma.bind('<ButtonPress-1>', lambda event:
+                                                        configPanel.ScaleGamma.config(variable=None))
+                            configPanel.ScaleGamma.bind('<ButtonRelease-1>', lambda event:
+                                                        self.SetGammaLevel(configPanel.ScaleGamma))
 
-                            configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto', command=self.SetGammaAuto)
+                            configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto',
+                                                                           command=self.SetGammaAuto)
                             configPanel.toggleGammaManual.pack(side='left')
                             configPanel.ScaleGamma.pack(side='left', fill='x')
                         frame_GammaButtons.pack(fill='x')
@@ -668,15 +709,19 @@ class CameraController():
                                                  buttonShowTitle='Custom Commands', buttonHideTitle='Hide',
                                                  toggleCommand=weightToggle)
         self.Frame_CustomCommands = ScrollFrame(Frame_CustomCommandsParent.contentFrame, maxHeight=400,
-                                                frameConfigureCommand=lambda widget: self.UpdateWindowCellWeights(widget, 1))
+                                                frameConfigureCommand=lambda widget:
+                                                self.UpdateWindowCellWeights(widget, 1))
         if True:
-            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame, text='Add Custom Command', relief='raised')
+            PrefabCommandsButton = tk.Menubutton(Frame_CustomCommandsParent.contentFrame,
+                                                 text='Add Custom Command',relief='raised')
             Frame_CustomCommandsToolbar = tk.Frame(Frame_CustomCommandsParent.contentFrame)
             if True:
                 PrefabCommandsButton.pack()
 
                 #TODO: add a scrollbar into this
-                self.SavedPrefabCommandsView = ToggleFrame(Frame_CustomCommandsToolbar, title='Saved Commands', buttonShowTitle = 'Show Saved Commands', buttonHideTitle='Hide', relief='groove', borderwidth=2)
+                self.SavedPrefabCommandsView = ToggleFrame(Frame_CustomCommandsToolbar, title='Saved Commands',
+                                                           buttonShowTitle = 'Show Saved Commands', buttonHideTitle='Hide',
+                                                           relief='groove', borderwidth=2)
                 self.SavedPrefabCommandsView.contentFrame.configure(bg='white')
     
                 self.SavedPrefabCommandsView.pack(side='right')
@@ -687,7 +732,8 @@ class CameraController():
                 self.PrefabCommandsList.add_command(label='blank command', command=lambda:self.AddCustomCommand(''))
                 self.PrefabCommandsList.add_separator()
                 for customCommand in self.PrefabCommands:
-                    self.PrefabCommandsList.add_command(label=customCommand, command=lambda c=customCommand: self.AddCustomCommand(c))
+                    self.PrefabCommandsList.add_command(label=customCommand, command=lambda c=customCommand:
+                                                        self.AddCustomCommand(c))
 
                 self.PrefabCommandsList.add_separator()
 
@@ -696,11 +742,13 @@ class CameraController():
                 self.PrefabCommandsList.add_command(label='          Custom User Commands:', state='disabled')
                 i = 0
                 for userCommand in self.UserPrefabCommands:
-                    self.PrefabCommandsList.add_command(label=userCommand, command=lambda c=userCommand: self.AddCustomCommand(c))
+                    self.PrefabCommandsList.add_command(label=userCommand, command=lambda
+                                                        c=userCommand: self.AddCustomCommand(c))
                     Frame_Command = tk.Frame(self.SavedPrefabCommandsView.contentFrame, bg='white')
                     Frame_Command.pack(fill='x')
                     tk.Label(Frame_Command, text=userCommand,bg='white').pack(side='left')
-                    tk.Button(Frame_Command, text='Delete', command=lambda f=Frame_Command: self.DeleteCustomCommand(f)).pack(side='right')
+                    tk.Button(Frame_Command, text='Delete', command=lambda f=Frame_Command:
+                              self.DeleteCustomCommand(f)).pack(side='right')
 
                     i += 1
 
@@ -712,8 +760,7 @@ class CameraController():
         self.window.columnconfigure(0, weight=1)
 
     def parseBindings(self, bindingString):
-        #print (bindingString)
-        #TODO: make a class to hold all the save/load stuff, put this in it
+        #TODO: move to Settings.py
         self.commandBinds = deepcopy(self.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
         lines=bindingString.splitlines()
         bindables.bindablePresets=[]
@@ -722,13 +769,14 @@ class CameraController():
                 presetName=None
 
                 segments=line.split(',')
-                print(line)
+                debug.print(line)
                 commandIndex = segments[0]
 
                 if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
                     presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
                     commandIndex=bindables.bindingPresets
-                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName), bindables.index[bindables.bindingPresets][1])
+                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName),
+                             bindables.index[bindables.bindingPresets][1])
                     if (not presetName in bindables.bindablePresets):
                         bindables.bindablePresets.append(presetName)
                 else:
@@ -749,13 +797,12 @@ class CameraController():
                     else: midiChannel = int(midiChannel)
                     if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
                     else: inputNumber = int(inputNumber)
-                    self.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice, midiChannel, inputNumber, command, threshold=threshold)))
+                    self.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, threshold=threshold)))
                 elif (bindingDevice=='controller'):
                     if (bindingSubdevice == 'axis'):
                         axisNum, axisType, axisFlip = segments[2:5]
                         if (len(segments)==6): threshold = float(segments[5])
                         else: threshold=None
-                        if (threshold is not None): print(threshold)
                         self.commandBinds['controller']['axis'][int(axisNum)] = addBinding(bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
                     elif (bindingSubdevice == 'button'):
                         button = segments[2]
@@ -769,9 +816,6 @@ class CameraController():
         self.enableFrame(self.window)
         inputRouting.bindListenCancelSafe()
 
-    def toggleCodecDebugPrints(self):
-        Settings.config['Startup']['PrintFullCodecResponse']=str(Settings.printCodecResponse.get())
-        Settings.SaveConfig()
 
     noDisable=('Frame', 'Labelframe', 'Scrollbar', 'Toplevel', 'Canvas')
     def disableFrame(self,frame):
@@ -816,7 +860,12 @@ class CameraController():
 
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
-                tk.Checkbutton(debugToggleFrame, text='print verbose codec responses', variable=Settings.printCodecResponse, command=self.toggleCodecDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='print verbose debug',
+                               variable=Settings.printVerbose, command=Settings.toggleVerboseDebugPrints).pack(side='left')
+                tk.Checkbutton(debugToggleFrame, text='mute codec responses',
+                               variable=Settings.muteCodecResponse, command=Settings.toggleMuteCodecPrints).pack(side='left')
+                
+
 
             bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
 
@@ -888,29 +937,16 @@ class CameraController():
                 connected=True
             else:
                 print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])
-
-                try:
-                    self.ssh.connect(hostname=Settings.config['Startup']['IPADDRESS'],
+                connected=Shell.connect(hostname=Settings.config['Startup']['IPADDRESS'],
                                      username=Settings.config['Startup']['USERNAME'],
                                      password=Settings.config['Startup']['PASSWORD'])
-                except paramiko.ssh_exception.BadAuthenticationType:
-                    #TODO: feedback in main window
-                    print('\n\nusername or password mismatch!')
-                except paramiko.ssh_exception.NoValidConnectionsError:
-                    print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
-                except TimeoutError:
-                    print('\n\nSSH timeout! No device found.')
-                except:
-                    #TODO: 
-                    print("Unhandled Connection Exception:", sys.exc_info()[0])
-                else:
-                    connected=True
+                
                 if (connected):
-                    self.shell = self.ssh.invoke_shell()
+                    self.shell = Shell(self)
                     while not (self.shell.recv_ready()):
                             time.sleep(1)
-                    out = self.shell.recv(9999).decode('ascii')
-                    print(out)
+                    out = self.shell.recv().decode('ascii')
+                    debug.printCodec(out)
                     #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
                     #TODO: also, check if codec login message is different on various firmwares
                     #TODO: also also, add override option in settings
@@ -984,12 +1020,12 @@ class CameraController():
         self.inputBuffer=command
 
     def refreshInputDevicesMidi(self):
-        print('midi devices:')
+        debug.print('midi devices:')
         self.inputDevicesMidis = []
         self.inputDevicesMidiNames = []
         for i in range(pygame.midi.get_count()):
             info = pygame.midi.get_device_info(i)
-            print(info)
+            debug.print(info)
             if (info[2]==1):
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
                 self.inputDevicesMidiNames.append(str(pygame.midi.get_device_info(i)[1], 'utf-8'))
@@ -998,9 +1034,9 @@ class CameraController():
                 self. inputDevicesMidiNames.append(None)
 
     def refreshInputDevicesControllers(self):
-        print ('controllers:')
+        debug.print ('controllers:')
         self.inputDevicesControllers = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
-        print(self.inputDevicesControllers)
+        debug.print(self.inputDevicesControllers)
         self.inputDevicesControllersLastVals = None
         #axis bindings are command, type, flip (where 'type' is 'stick' or 'trigger', deadzone is treated differently between the two)
         #hat bindings are a list of commands for the eight directions (call the direction's command with (1) when the hat moves to that direction, call the direction's command with (0) when the hat moves and hat last was that direction)
@@ -1009,7 +1045,6 @@ class CameraController():
         if (len(self.inputDevicesControllers)):
             controller = pygame.joystick.Joystick(0) #TODO: selector to pick which controller is active, and then a ChangeController function
             self.inputDevicesControllers.append(controller)
-            print(controller)
             self.inputDevicesControllersLastVals = { 'axis':[], 'button':[], 'hat':[] }
             for a in range(controller.get_numaxes()):
                 self.inputDevicesControllersLastVals['axis'].append(0)
@@ -1017,7 +1052,6 @@ class CameraController():
                 self.inputDevicesControllersLastVals['button'].append(False)
             for h in range(controller.get_numhats()):
                 self.inputDevicesControllersLastVals['hat'].append(None)
-            print(self.inputDevicesControllersLastVals)
 
 
     def loadControls(self):
@@ -1209,146 +1243,9 @@ class CameraController():
                     self.ConfigUpdateTimer = self.ConfigUpdateInterval
                     self.GetCameraConfig(Camera.selectedNum)
 
-            if (self.shell.recv_ready()):
-                out=self.shell.recv(9999).decode('ascii')
-                debug.print('vvvv')
-                Responses = out.splitlines()
-
-                StartPhraseCamera = ' Camera '
-                StartPhrasePan = 'Position Pan: '
-                StartPhraseTilt = 'Position Tilt: '
-                StartPhraseZoom = 'Position Zoom: '
-                StartPhraseFocus = 'Position Focus: '
-                StartPhraseBrightnessLevel = 'Brightness Level: '
-                StartPhraseWhitebalanceLevel = 'Whitebalance Level: '
-                StartPhraseGammaLevel = 'Gamma Level: '
-                StartPhraseFocusMode = 'Focus Mode: '
-                StartPhraseBrightnessMode = 'Brightness Mode: '
-                StartPhraseWhitebalanceMode = 'Whitebalance Mode: '
-                StartPhraseGammaMode = 'Gamma Mode: '
-                StartPhrasePresetResult = 'PresetListResult Preset '
-                StartPhrasePresetStoreResult = 'PresetStoreResult'
-
-                StartPhraseCamera = 'Camera '
-
-                for ResponseLine in Responses:
-                    print('>>' + ResponseLine)
-                    #TODO: turn all these calls into a more general function
-                    #TODO: get the camera number referred to in ResponseLine (if applicable), check if it's the current camera
-                    #TODO: handling for bad inputs (EG newline missing)
-                    if (ResponseLine.startswith('*')):
-                        if (StartPhraseCamera in ResponseLine):
-                            sIndex=ResponseLine.rfind(StartPhraseCamera) + len(StartPhraseCamera)
-                            cameraNumber = int(ResponseLine[sIndex])
-                        if (StartPhrasePan in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhrasePan) + len(StartPhrasePan)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[0]=value
-                            self.LabelPan.config(text = 'Pan: ' + str(value))
-                            self.PanningDone()
-
-                        elif (StartPhraseTilt in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseTilt) + len(StartPhraseTilt)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[1]=value
-                            self.LabelTilt.config(text = 'Tilt: ' + str(value))
-                            self.TiltingDone()
-                    
-                        elif (StartPhraseZoom in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseZoom) + len(StartPhraseZoom)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[2]=value
-                            self.LabelZoom.config(text = 'Zoom: ' + str(value))
-                            self.ZoomingDone()
-                    
-                        elif (StartPhraseFocus in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseFocus) + len(StartPhraseFocus)
-                            value = int(ResponseLine[sIndex:])
-                            self.cameras[cameraNumber].position[3]=value
-                            self.LabelFocus.config(text = 'Focus: ' + str(value))
-                            self.FocusingDone()
-                    
-                        elif (StartPhraseBrightnessLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseBrightnessLevel) + len(StartPhraseBrightnessLevel)
-                            self.cameras[cameraNumber].brightnessValue.set(int(ResponseLine[sIndex:]))
-                    
-                        elif (StartPhraseWhitebalanceLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseWhitebalanceLevel) + len(StartPhraseWhitebalanceLevel)
-                            self.cameras[cameraNumber].whitebalanceValue.set(int(ResponseLine[sIndex:]))
-                            
-                        elif (StartPhraseGammaLevel in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseGammaLevel) + len(StartPhraseGammaLevel)
-                            self.cameras[cameraNumber].gammaValue.set(int(ResponseLine[sIndex:]))
-
-                        elif (StartPhraseFocusMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseFocusMode) + len(StartPhraseFocusMode)
-                            self.cameras[cameraNumber].focusManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhraseBrightnessMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseBrightnessMode) + len(StartPhraseBrightnessMode)
-                            self.cameras[cameraNumber].brightnessManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhraseWhitebalanceMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseWhitebalanceMode) + len(StartPhraseWhitebalanceMode)
-                            self.cameras[cameraNumber].whitebalanceManual.set(ResponseLine[sIndex:]=='Auto')
-                    
-                        elif (StartPhraseGammaMode in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhraseGammaMode) + len(StartPhraseGammaMode)
-                            self.cameras[cameraNumber].gammaManual.set(ResponseLine[sIndex:]=='Auto')
-
-                        elif (StartPhrasePresetStoreResult in ResponseLine):
-                            sIndex = ResponseLine.rfind(StartPhrasePresetStoreResult) + len(StartPhrasePresetStoreResult)
-                            self.ListPresetsCamera()
-
-                        elif (StartPhrasePresetResult in ResponseLine):
-                            SplitString = ResponseLine.split()
-                            i=0
-                            while i < len(SplitString):
-                                if (SplitString[i] == 'PresetListResult' and SplitString[i+1] == 'Preset'):
-                                    PresetIndex = int(SplitString[i+2])
-                                    if (self.CameraPresets[PresetIndex] == None):
-                                        self.CameraPresets[PresetIndex] = CameraPresetPanel(self.Frame_PresetsContainer.contents, PresetIndex)
-                                        debug.print('added preset at index ' + str(PresetIndex))
-                                    i+=2
-                                elif (SplitString[i] == 'Name:'):
-                                    nameString = SplitString[i+1]
-                                    i+=2
-                                    while i < len(SplitString): #keep adding to name until the end of the line
-                                        nameString += ' ' + SplitString[i]
-                                        i+= 1
-                                    self.CameraPresets[PresetIndex].setContents(name = nameString[1:len(nameString)-1]) #trim quotes
-                                    debug.print('added name "' + self.CameraPresets[PresetIndex].name + '" at index ' + str(PresetIndex))
-                                    i+=1
-                                elif (SplitString[i] == 'CameraId:'):
-                                    self.CameraPresets[PresetIndex].setContents(cameraId = int(SplitString[i+1]))
-                                    debug.print('added cameraId ' + str(self.CameraPresets[PresetIndex].cameraId) + ' at index ' + str(PresetIndex))
-                                    i+=1
-                                elif (SplitString[i] == 'PresetId:'):
-                                    self.CameraPresets[PresetIndex].setContents(presetId = int(SplitString[i+1]))
-                                    debug.print('added Id ' + str(self.CameraPresets[PresetIndex].presetId) + ' at index ' + str(PresetIndex))
-                                    i+=1
-                                i+=1
-
-                        elif (StartPhraseCamera in ResponseLine): #!!!!!!!!!!!!! Make sure this elif is always the last in line !!!!!!!!!!!!
-                            #(it'll catch any remaining command that includes the word 'camera')
-                            sIndex = ResponseLine.rfind(StartPhraseCamera)
-                            if (sIndex > -1):
-                                NextPhrase = ' Connected: '
-                                nIndex = ResponseLine.rfind(NextPhrase)
-                                if (nIndex == sIndex + len(StartPhraseCamera)+1):
-                                    sIndex += len(StartPhraseCamera)
-                                    camNumber = int(ResponseLine[sIndex])
-                                    nIndex += len(NextPhrase)
-                                    boolConnected = ResponseLine[nIndex:] == 'True'
-                                    if (debug.forceCameraConnection and (2 <= camNumber <= 3)): boolConnected = True #debug: force UI to think cameras 2 and 3 are always connected
-                                    self.CameraAvailable(camNumber, boolConnected)
-                                    if (Camera.selected is None):
-                                        self.cameras[camNumber].select()
-                                    debug.print('Camera ' + str(camNumber) + ' Status: ' + str(boolConnected))
-                debug.print('^^^^')
+            self.shell.checkResponses()
         
         self.updateDirectValues()
-
 
 #start the actual program
 if __name__ == '__main__':

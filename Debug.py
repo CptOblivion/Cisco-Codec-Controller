@@ -12,7 +12,10 @@ class debug():
     verbosePrints = False
 
     def print(message):
-        if (Settings.printCodecResponse.get()):
+        if (Settings.printVerbose.get()):
+            print(message)
+    def printCodec(message):
+        if (not Settings.muteCodecResponse.get()):
             print(message)
     def writeErrorLog():
         #message=sys.exc_info()
