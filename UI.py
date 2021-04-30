@@ -641,3 +641,38 @@ class CameraPresetPanel(tk.Frame):
             name=name.replace(' ','_')
             self.name=name
         self.updateContents()
+
+class ConfigSlider(tk.Frame):
+    def __init__(self, parent, command=None, from_=0, to_=1):
+        tk.Frame.__init__(self,parent)
+        self.contentFrame=tk.Frame(self)
+        self.command=command
+        self.from_=from_
+        self.to_=to_
+        if True:
+            self.scale=tk.Scale(self.contentFrame, from_=from_, to_=to_, orient='horizontal')
+            self.scale.bind('<ButtonPress-1>', self.onMouseDown)
+            self.scale.bind('<ButtonRelease-1>', self.onMouseUp)
+
+            tk.Button(self.contentFrame,text='<', command=self.decrement).pack(side='left')
+            self.scale.pack(side='left', fill='x')
+            tk.Button(self.contentFrame,text='>', command=self.increment).pack(side='left')
+
+        self.contentFrame.pack(fill='both')
+    def setVariable(self, variable):
+        self.variable=variable
+        self.scale.config(variable=variable)
+    def onMouseDown(self, event):
+        self.scale.config(variable=None)
+    def onMouseUp(self, event):
+        self.scale.config(variable=self.variable)
+        if (self.command and self.variable):
+            self.command(self.variable.get())
+    def decrement(self):
+        if (self.variable):
+            self.variable.set(max(self.from_, self.variable.get()-1))
+            if (self.command): self.command(self.variable.get())
+    def increment(self):
+        if (self.variable):
+            self.variable.set(min(self.to_, self.variable.get()+1))
+            if (self.command): self.command(self.variable.get())

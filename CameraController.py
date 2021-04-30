@@ -388,11 +388,11 @@ class CameraController():
         if (self.Frame_PresetsContainer): self.filterPresetsCurrent()
         configPanel.toggleFocusManual.config(variable=Camera.selected.focusManual)
         configPanel.toggleBrightnessManual.config(variable=Camera.selected.brightnessManual)
-        configPanel.ScaleBrightness.config(variable=Camera.selected.brightnessValue)
+        configPanel.ScaleBrightness.setVariable(Camera.selected.brightnessValue)
         configPanel.toggleGammaManual.config(variable=Camera.selected.gammaManual)
-        configPanel.ScaleGamma.config(variable=Camera.selected.gammaValue)
+        configPanel.ScaleGamma.setVariable(Camera.selected.gammaValue)
         configPanel.toggleWhitebalanceManual.config(variable=Camera.selected.whitebalanceManual)
-        configPanel.ScaleWhitebalance.config(variable=Camera.selected.whitebalanceValue)
+        configPanel.ScaleWhitebalance.setVariable(Camera.selected.whitebalanceValue)
         self.UpdateCameraDetails()
 
     def UpdateCameraDetails(self):
@@ -471,15 +471,12 @@ class CameraController():
         CommandEntry.pack(side=tk.RIGHT, padx=self.PadInt, pady=self.PadInt, fill='x', expand=True)
         CommandButton.pack(side=tk.RIGHT, padx=self.PadInt, pady=self.PadInt)
 
-    def SetBrightnessLevel(self, Scale):
-        self.xConfiguration('Brightness Level: ' + str(Scale.get()))
-        Scale.config(variable=Camera.selected.brightnessValue)
-    def SetWhitebalanceLevel(self, Scale):
-        self.xConfiguration('Whitebalance Level: ' + str(Scale.get()))
-        Scale.config(variable=Camera.selected.whitebalanceValue)
-    def SetGammaLevel(self, Scale):
-        self.xConfiguration('Gamma Level: ' + str(Scale.get()))
-        Scale.config(variable=Camera.selected.gammaValue)
+    def SetBrightnessLevel(self, value):
+        self.xConfiguration('Brightness Level: ' + str(value))
+    def SetWhitebalanceLevel(self, value):
+        self.xConfiguration('Whitebalance Level: ' + str(value))
+    def SetGammaLevel(self, value):
+        self.xConfiguration('Gamma Level: ' + str(value))
     def SetFocusAuto(self):
         if (Camera.selected.focusManual.get()): self.xConfiguration('Focus Mode: Auto')
         else: self.xConfiguration('Focus Mode: Manual')
@@ -636,12 +633,8 @@ class CameraController():
                         tk.Label(Frame_BrightnessMode, text='Brightness').pack(pady=(2,0))
                         frame_BrightnessButtons = tk.Frame(Frame_BrightnessMode)
                         if True:
-                            configPanel.ScaleBrightness = tk.Scale(frame_BrightnessButtons, from_=1, to_=31, orient='horizontal')
-                            configPanel.ScaleBrightness.bind('<ButtonPress-1>',lambda event:
-                                                             configPanel.ScaleBrightness.config(variable=None)) #TODO: this is supposed to unbind the vairable while we have the cursor down, so incoming updates don't move it out from under us, but it doesn't work
-                            configPanel.ScaleBrightness.bind('<ButtonRelease-1>', lambda event:
-                                                             self.SetBrightnessLevel(configPanel.ScaleBrightness))
-
+                            configPanel.ScaleBrightness=ConfigSlider(frame_BrightnessButtons,
+                                                                     command=self.SetBrightnessLevel, from_=1, to_=31)
                             configPanel.toggleBrightnessManual = tk.Checkbutton(frame_BrightnessButtons,text='Auto',
                                                                                 command=self.SetBrightnessAuto)
                             configPanel.toggleBrightnessManual.pack(side='left')
@@ -653,15 +646,8 @@ class CameraController():
                         tk.Label(Frame_WhitebalanceMode, text='White Balance').pack(pady=(2,0))
                         frame_WhitebalanceButtons = tk.Frame(Frame_WhitebalanceMode)
                         if True:
-                            #self.ToggleWhitebalanceManual = ToggleButtonChecked(frame_WhitebalanceButtons, textOff=['auto', 'go manual'], textOn=['go auto', 'manual'], toggleCommand=self.SetWhitebalanceManual)
-                            configPanel.ScaleWhitebalance = tk.Scale(frame_WhitebalanceButtons,
-                                                                     from_=1, to_=16, orient='horizontal')
-                            configPanel.ScaleWhitebalance.bind('<ButtonPress-1>', lambda event:
-                                                               configPanel.ScaleWhitebalance.config(variable=None))
-                            configPanel.ScaleWhitebalance.bind('<ButtonRelease-1>', lambda event:
-                                                               self.SetWhitebalanceLevel(configPanel.ScaleWhitebalance))
-
-                            #self.ToggleWhitebalanceManual.pack(side='left')
+                            configPanel.ScaleWhitebalance=ConfigSlider(frame_WhitebalanceButtons,
+                                                                     command=self.SetWhitebalanceLevel, from_=1, to_=16)
                             configPanel.toggleWhitebalanceManual=tk.Checkbutton(frame_WhitebalanceButtons, text='Auto',
                                                                                 command=self.SetWhitebalanceAuto)
                             configPanel.toggleWhitebalanceManual.pack(side='left')
@@ -673,12 +659,8 @@ class CameraController():
                         tk.Label(Frame_GammaMode, text='Gamma').pack(pady=(2,0))
                         frame_GammaButtons = tk.Frame(Frame_GammaMode)
                         if True:
-                            configPanel.ScaleGamma = tk.Scale(frame_GammaButtons, from_=0, to_=7, orient='horizontal')
-                            configPanel.ScaleGamma.bind('<ButtonPress-1>', lambda event:
-                                                        configPanel.ScaleGamma.config(variable=None))
-                            configPanel.ScaleGamma.bind('<ButtonRelease-1>', lambda event:
-                                                        self.SetGammaLevel(configPanel.ScaleGamma))
-
+                            configPanel.ScaleGamma=ConfigSlider(frame_GammaButtons,
+                                                                     command=self.SetGammaLevel, from_=0, to_=7)
                             configPanel.toggleGammaManual = tk.Checkbutton(frame_GammaButtons, text='Auto',
                                                                            command=self.SetGammaAuto)
                             configPanel.toggleGammaManual.pack(side='left')
