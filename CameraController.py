@@ -365,7 +365,7 @@ class CameraController():
 
     def AddDirectionButton(self, label,frame,gridY, gridX, functionDn, functionUp, image=None):
         if (image):
-            try: image = tk.PhotoImage(file = Assets.getPath(image))
+            try: image = tk.PhotoImage(file = Assets.getAsset(image))
             except: image=None
         if (image): button = tk.Button(frame, image=image, relief='flat', borderwidth=0)
         else: button = tk.Button(frame, text=label, width=3, height=2)
@@ -521,19 +521,19 @@ class CameraController():
 
             Frame_ButtonGrid = tk.Frame(Frame_Main, relief='sunken', borderwidth=2)
             if True:
-                self.AddDirectionButton('↖', Frame_ButtonGrid, 1, 1, lambda event: self.StartMove(-self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_LU.png')
-                self.AddDirectionButton('⬆', Frame_ButtonGrid, 1, 2, lambda event: self.StartMove(0,self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_U.png')
-                self.AddDirectionButton('↗', Frame_ButtonGrid, 1, 3, lambda event: self.StartMove(self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_RU.png')
-                self.AddDirectionButton('⬅', Frame_ButtonGrid, 2, 1, lambda event: self.StartMove(-self.PanSpeed.get(),0),self.StopMove, image=r'Assets\Arrow_L.png')
-                self.AddDirectionButton('➡', Frame_ButtonGrid, 2, 3, lambda event: self.StartMove(self.PanSpeed.get(),0),self.StopMove, image=r'Assets\Arrow_R.png')
-                self.AddDirectionButton('↙', Frame_ButtonGrid, 3, 1, lambda event: self.StartMove(-self.PanSpeed.get(),-self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_LD.png')
-                self.AddDirectionButton('⬇', Frame_ButtonGrid, 3, 2, lambda event: self.StartMove(0,-self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_D.png')
-                self.AddDirectionButton('↘', Frame_ButtonGrid, 3, 3, lambda event: self.StartMove(1,-self.TiltSpeed.get()),self.StopMove, image=r'Assets\Arrow_RD.png')
+                self.AddDirectionButton('↖', Frame_ButtonGrid, 1, 1, lambda event: self.StartMove(-self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image=r'Arrow_LU.png')
+                self.AddDirectionButton('⬆', Frame_ButtonGrid, 1, 2, lambda event: self.StartMove(0,self.TiltSpeed.get()),self.StopMove, image=r'Arrow_U.png')
+                self.AddDirectionButton('↗', Frame_ButtonGrid, 1, 3, lambda event: self.StartMove(self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image=r'Arrow_RU.png')
+                self.AddDirectionButton('⬅', Frame_ButtonGrid, 2, 1, lambda event: self.StartMove(-self.PanSpeed.get(),0),self.StopMove, image=r'Arrow_L.png')
+                self.AddDirectionButton('➡', Frame_ButtonGrid, 2, 3, lambda event: self.StartMove(self.PanSpeed.get(),0),self.StopMove, image=r'Arrow_R.png')
+                self.AddDirectionButton('↙', Frame_ButtonGrid, 3, 1, lambda event: self.StartMove(-self.PanSpeed.get(),-self.TiltSpeed.get()),self.StopMove, image=r'Arrow_LD.png')
+                self.AddDirectionButton('⬇', Frame_ButtonGrid, 3, 2, lambda event: self.StartMove(0,-self.TiltSpeed.get()),self.StopMove, image=r'Arrow_D.png')
+                self.AddDirectionButton('↘', Frame_ButtonGrid, 3, 3, lambda event: self.StartMove(1,-self.TiltSpeed.get()),self.StopMove, image=r'Arrow_RD.png')
                 self.AddDirectionButton('Z+', Frame_ButtonGrid, 1, 5, self.ZoomIn,self.StopZoom)
                 self.AddDirectionButton('Z-', Frame_ButtonGrid, 2, 5, self.ZoomOut,self.StopZoom)
                 self.AddDirectionButton('F+', Frame_ButtonGrid, 1, 6, self.FocusFar, self.StopFocus)
                 self.AddDirectionButton('F-', Frame_ButtonGrid, 2, 6, self.FocusNear, self.StopFocus)
-                image=tk.PhotoImage(file=Assets.getPath('Assets\Arrow_C.png'))
+                image=tk.PhotoImage(file=Assets.getAsset('Arrow_C.png'))
                 button=tk.Button(Frame_ButtonGrid, text='FTrig', relief='flat', borderwidth=0, image=image, command= self.TriggerAutofocus)
                 button.grid(column=2, row=2)
                 button.image=image

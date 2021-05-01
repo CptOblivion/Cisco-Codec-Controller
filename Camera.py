@@ -5,9 +5,9 @@ class Camera():
     selectedNum=None
     controller=None
     def __init__(self, number):
-        Camera.imageCamAvailable = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamAvailable.png'))
-        Camera.imageCamSelected = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamSelected.png'))
-        Camera.imageCamNone = tk.PhotoImage(file=Assets.getPath('Assets\Button_CamNone.png'))
+        Camera.imageCamAvailable = tk.PhotoImage(file=Assets.getAsset('Button_CamAvailable.png'))
+        Camera.imageCamSelected = tk.PhotoImage(file=Assets.getAsset('Button_CamSelected.png'))
+        Camera.imageCamNone = tk.PhotoImage(file=Assets.getAsset('Button_CamNone.png'))
         self.number=number
         self.connected=False
         #Pan Tilt Zoom Focus

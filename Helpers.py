@@ -14,9 +14,9 @@ class deltaTime():
         deltaTime.lastTime=newTime
         
 class Assets():
-    def getPath(path):
+    def getAsset(asset):
         basePath=getattr(sys, '_MEIPASS', os.path.abspath('.')) #abspath(__file__) instead?
-        return os.path.join(basePath, path)
+        return os.path.join(basePath, 'Assets', asset)
 
 class controller():
     #easy link to get the current CameraController instance

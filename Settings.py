@@ -74,21 +74,22 @@ class Settings():
         Settings.unsavedChangesWarning=None
         Settings.saveButton=None
         Settings.comparisonString=None
-    def changeMade():
+    def changeMade(changedBinding, removed=False):
         if (Settings.unsavedChangesWarning):
             if (Settings.SaveBindings(save=False) !=Settings.comparisonString):
                 Settings.unsavedChanges=True
                 Settings.unsavedChangesWarning.pack(side='right')
-                #TODO: check for conflicting bindings
-                #if (conflicting bindings check not written yet):
-                #   Settings.saveButton.config(text='conflicting bindings!', state='disabled')
-                #   Settings.bindingConflictsWarning.pack(side='right')
-                #else:
-                #   Settings.bindingConflictsWarning.forget()
-                #   Settings.saveButton.config(text='save', state='normal')
+                
             else:
                 Settings.unsavedChanges=False
                 Settings.unsavedChangesWarning.forget()
+            for commandFrame in Settings.tempBinds:
+                for binding in commandFrame.BindingList.winfo_children():
+                    Settings.bindingConflicts=binding.checkConflict(changedBinding, removed=removed)
+            if (Settings.bindingConflicts):
+                Settings.saveButton.config(text='conflicting bindings!', state='disabled')
+            else:
+                Settings.saveButton.config(text='save', state='normal')
 
 
     def toggleVerboseDebugPrints():
@@ -172,8 +173,8 @@ class inputRouting():
         if ((commandTypeIndex==1) or inputRouting.settingsListenForInput.commandType[commandTypeIndex]): #TODO: this is a hacky holdover. Rework to a cleaner version of "button can take analog input, analog can't take digital input"
             inputRouting.settingsListenForInput.changeDeviceType(None)
             inputRouting.settingsListenForInput.setDevice(deviceType, deviceSubtype, contents)
+            Settings.changeMade(inputRouting.settingsListenForInput)
             inputRouting.bindListenCancel()
-            Settings.changeMade()
     def bindListen(bindingFrame):
         #TODO: bind 'esc' to bindListenCancel() (which should, in turn, unbind esc)
         #TODO: also bind clicking anywhere to cancel
