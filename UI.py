@@ -512,8 +512,9 @@ class ControlBindPanel(ToggleFrame):
                     return True
             elif (command==bindables.index[self.bindableName]): return True
             return False
-        
-        if (command[1]=='button' or command[1]=='both'): #digital inputs can only be bound to button commands, or commands that handle their own input
+
+         #digital inputs can only be bound to button commands, or commands that handle their own input
+        if (command[1]=='button' or command[1]=='both'):
             for binding in Settings.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',

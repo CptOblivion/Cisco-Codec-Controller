@@ -128,12 +128,9 @@ class Settings():
                 if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
                     presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
                     commandIndex=bindables.bindingPresets
-                    command=(lambda value, presetName=presetName: bindables.activatePreset(value,presetName),
-                             bindables.index[bindables.bindingPresets][1])
                     if (not presetName in bindables.bindablePresets):
                         bindables.bindablePresets.append(presetName)
-                else:
-                    command=bindables.index[commandIndex]
+                command=bindables.index[commandIndex]
 
                 def addBinding(binding): #TODO: move to root of class
                     if (presetName is not None):
@@ -150,19 +147,23 @@ class Settings():
                     else: midiChannel = int(midiChannel)
                     if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
                     else: inputNumber = int(inputNumber)
-                    Settings.commandBinds[bindingDevice][bindingSubdevice].append(addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, threshold=threshold)))
+                    Settings.commandBinds[bindingDevice][bindingSubdevice].append(
+                        addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, bindingSubdevice, threshold=threshold)))
                 elif (bindingDevice=='controller'):
                     if (bindingSubdevice == 'axis'):
                         axisNum, axisType, axisFlip = segments[2:5]
                         if (len(segments)==6): threshold = float(segments[5])
                         else: threshold=None
-                        Settings.commandBinds['controller']['axis'][int(axisNum)] = addBinding(bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
+                        Settings.commandBinds['controller']['axis'][int(axisNum)] = addBinding(
+                            bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
                     elif (bindingSubdevice == 'button'):
                         button = segments[2]
-                        Settings.commandBinds['controller']['button'][int(button)] = addBinding(bindingControllerButton(command))
+                        Settings.commandBinds['controller']['button'][int(button)] = addBinding(
+                            bindingControllerButton(command))
                     elif (bindingSubdevice == 'hat'):
                         hatNum, hatDirection = segments[2:]
-                        Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(bindingControllerButton(command))
+                        Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(
+                            bindingControllerButton(command))
         
         if (hasattr(Settings, 'unsavedChangesWarning')): Settings.unsavedChangesWarning.forget()
 

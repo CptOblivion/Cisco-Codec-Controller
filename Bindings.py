@@ -6,19 +6,33 @@ class _bindingBase_():
         self.command=command
         self.bindablePreset=None
     def callCommand(self, state):
-        if (self.command): self.command[0](state)
+        if (self.command):
+            if (self.bindablePreset):
+                self.command[0](self, state, self.bindablePreset)
+            else:
+                self.command[0](self, state)
 
 class bindingMidi(_bindingBase_):
-    def __init__(self, midiDevice, midiChannel,inputNumber, command, threshold=None):
+    def __init__(self, midiDevice, midiChannel,inputNumber, command, subdevice, threshold=None):
         _bindingBase_.__init__(self, command)
-        self.midiDevice=midiDevice
-        self.midiChannel = midiChannel
+        #TODO: mark if note or CC
+        #TODO: if channel is None, when this binding is activated store the channel that was used
+        #TODO: same with device
+        self.midiDevice=self.midiDeviceLast=midiDevice
+        self.midiChannel = self.midiChannelLast=midiChannel
+        self.subdevice=subdevice
         if (threshold is None):
             threshold=bindables.thresholdDefaultMidiCC
         self.threshold=threshold
         self.valueLast={}
         
         self.inputNumber = inputNumber
+    def getMessageDetails(self):
+        device=self.midiDevice
+        channel=self.midiChannel
+        if (self.midiDevice is None): device=self.midiDeviceLast
+        if (self.midiChannel is None): channel=self.midiChannelLast
+        return(device,channel)
 
 class bindingControllerButton(_bindingBase_):
     def __init__(self, command):
@@ -38,35 +52,37 @@ class bindables():
     thresholdDefaultMidiCC = .1
 
     PresetWrite=False
+
+    lastPresetBinding=None
     
     def _CameraRamp_(value, x, y):
         if (value): controller.current.StartMove(controller.current.PanSpeed.get()*x,controller.current.TiltSpeed.get()*y)
         else: controller.current.StopMove(None)
-    def buttonPanUL(value):
+    def buttonPanUL(binding, value):
         bindables._CameraRamp_(value, -1,1)
-    def buttonPanU(value):
+    def buttonPanU(binding, value):
         bindables._CameraRamp_(value, 0,1)
-    def buttonPanUR(value):
+    def buttonPanUR(binding, value):
         bindables._CameraRamp_(value, 1,1)
-    def buttonPanL(value):
+    def buttonPanL(binding, value):
         bindables._CameraRamp_(value, -1,0)
-    def buttonPanR(value):
+    def buttonPanR(binding, value):
         bindables._CameraRamp_(value, 1,0)
-    def buttonPanDL(value):
+    def buttonPanDL(binding, value):
         bindables._CameraRamp_(value, -1,-1)
-    def buttonPanD(value):
+    def buttonPanD(binding, value):
         bindables._CameraRamp_(value, 0,-1)
-    def buttonPanDR(value):
+    def buttonPanDR(binding, value):
         bindables._CameraRamp_(value, 1,-1)
-    def bothTriggerAutofocus(value):
+    def bothTriggerAutofocus(binding, value):
         if (controller.current.init and value): controller.current.TriggerAutofocus()
-    def buttonFocusNear(value):
+    def buttonFocusNear(binding, value):
         if (controller.current.init and value): controller.current.FocusNear(None)
         else: controller.current.StopFocus(None)
-    def buttonFocusFar(value):
+    def buttonFocusFar(binding, value):
         if (controller.current.init and value): controller.current.FocusFar(None)
         else: controller.current.StopFocus(None)
-    def bothRefreshPosition(value):
+    def bothRefreshPosition(binding, value):
         if (controller.current.init and value): controller.current.UpdateCameraDetails()
     
     def _ProcessAxis_(value):
@@ -89,20 +105,20 @@ class bindables():
             if (controller.current.joystickPanAxesInt == [0,0]): controller.current.QueueInput(lambda: controller.current.StopMove(None))
             else: controller.current.QueueInput(bindables._queueJoystickPan_)
 
-    def analogPTSpeed(value):
+    def analogPTSpeed(binding, value):
         controller.current.PanSpeed.set(int(value*14+1))
         controller.current.TiltSpeed.set(int(value*14+1))
-    def analogSetZSpeed(value):
+    def analogSetZSpeed(binding, value):
         controller.current.ZoomSpeed.set(int(value*14+1))
-    def analogPanDirect(value):
+    def analogPanDirect(binding, value):
         controller.current.directControls['pan'].set(value)
-    def analogTiltDirect(value):
+    def analogTiltDirect(binding, value):
         controller.current.directControls['tilt'].set(value)
-    def analogZoomDirect(value):
+    def analogZoomDirect(binding, value):
         controller.current.directControls['zoom'].set(value)
-    def analogFocusDirect(value):
+    def analogFocusDirect(binding, value):
         controller.current.directControls['focus'].set(value)
-    def analogRampZoom(value):
+    def analogRampZoom(binding, value):
         if (value==0):
             controller.current.QueueInput(lambda: controller.current.StopZoom(None))
         else:
@@ -110,7 +126,7 @@ class bindables():
             else: value = int(math.floor(value*15))
             controller.current.rampZoomValue = value
             controller.current.QueueInput(lambda: controller.current.startZoom(controller.current.rampZoomValue))
-    def analogRampFocus(value):
+    def analogRampFocus(binding, value):
         value = value*2-1
         if (value==0):
             controller.current.QueueInput(lambda: controller.current.StopFocus(None))
@@ -118,35 +134,42 @@ class bindables():
             value=int(math.copysign(1,value))
             controller.current.rampFocusValue = value
             controller.current.QueueInput(lambda: controller.current.startFocus(controller.current.rampFocusValue))
-    def analogRampPan(value):
+    def analogRampPan(binding, value):
         bindables._SetJoystickPan_(0,value)
-    def analogRampTilt(value):
+    def analogRampTilt(binding, value):
         bindables._SetJoystickPan_(1,value)
-    def bothDebugOutputValue(value):
+    def bothDebugOutputValue(binding, value):
         print(value)
 
     def _selectCamera_(value):
         controller.current.cameras[value].select()
-    def selectCamera1(value):
+    def selectCamera1(binding, value):
         bindables._selectCamera_(1)
-    def selectCamera2(value):
+    def selectCamera2(binding, value):
         bindables._selectCamera_(2)
-    def selectCamera3(value):
+    def selectCamera3(binding, value):
         bindables._selectCamera_(3)
-    def selectCamera4(value):
+    def selectCamera4(binding, value):
         bindables._selectCamera_(4)
-    def selectCamera5(value):
+    def selectCamera5(binding, value):
         bindables._selectCamera_(5)
-    def selectCamera6(value):
+    def selectCamera6(binding, value):
         bindables._selectCamera_(6)
-    def selectCamera7(value):
+    def selectCamera7(binding, value):
         bindables._selectCamera_(7)
 
-    def setPresetWrite(value):
+    def setPresetWrite(binding, value):
         bindables.PresetWrite=bool(value)
         controller.current.TogglePresetEdit.SetState(bindables.PresetWrite)
 
-    def activatePreset(buttonValue, presetName):
+    def _getMidiOutput(binding):
+        if (isinstance(binding, bindingMidi)):
+            device=binding.getMessageDetails()
+            if (device):
+                deviceIndex=controller.current.inputDevicesMidiNames.index(device[0])
+                return (controller.current.outputDevicesMidis[deviceIndex], device[1])
+        return (None,None)
+    def activatePreset(binding, buttonValue, presetName):
         if (buttonValue):
             triggered = False
             for preset in controller.current.CamerasPresets:
@@ -164,7 +187,21 @@ class bindables():
                             preset.saveToPreset()
                         else:
                             preset.activatePreset()
+                        triggered=True
                         break
+            if (triggered):
+                if (bindables.lastPresetBinding):
+                    device=bindables._getMidiOutput(bindables.lastPresetBinding)
+                    if (device[0] and binding.subdevice=='note'):
+                        #TODO: check if the binding was a note or a CC
+                        device.note_off(bindables.lastPresetBinding.inputNumber,
+                                        channel=device[1])
+                bindables.lastPresetBinding=binding
+                if (isinstance(binding, bindingMidi)):
+                    device=bindables._getMidiOutput(binding)
+                    if (device[0] and binding.subdevice=='note'):
+                        device.note_on(binding.inputNumber, velocity=63,
+                                       channel=device[1])
     
     bindablePresets=[]
 

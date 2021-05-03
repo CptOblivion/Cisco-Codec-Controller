@@ -85,6 +85,7 @@ class CameraController():
         self.inputBufferTime = self.inputBufferTimer = .05 #TODO: make configurable
 
         self.inputDevicesMidis = []
+        self.outputDevicesMidis = []
         self.inputDevicesMidiNames=[]
         self.inputDevicesControllers = []
         self.hatBoundVal = [None,None,None,None,None,None,None,None]
@@ -521,15 +522,23 @@ class CameraController():
 
             Frame_ButtonGrid = tk.Frame(Frame_Main, relief='sunken', borderwidth=2)
             if True:
-                self.AddDirectionButton('↖', Frame_ButtonGrid, 1, 1, lambda event: self.StartMove(-self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image='Arrow_LU.png')
-                self.AddDirectionButton('⬆', Frame_ButtonGrid, 1, 2, lambda event: self.StartMove(0,self.TiltSpeed.get()),self.StopMove, image='Arrow_U.png')
-                self.AddDirectionButton('↗', Frame_ButtonGrid, 1, 3, lambda event: self.StartMove(self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image='Arrow_RU.png')
-                self.AddDirectionButton('⬅', Frame_ButtonGrid, 2, 1, lambda event: self.StartMove(-self.PanSpeed.get(),0),self.StopMove, image='Arrow_L.png')
-                self.AddDirectionButton('➡', Frame_ButtonGrid, 2, 3, lambda event: self.StartMove(self.PanSpeed.get(),0),self.StopMove, image='Arrow_R.png')
-                self.AddDirectionButton('↙', Frame_ButtonGrid, 3, 1, lambda event: self.StartMove(-self.PanSpeed.get(),-self.TiltSpeed.get()),self.StopMove, image='Arrow_LD.png')
-                self.AddDirectionButton('⬇', Frame_ButtonGrid, 3, 2, lambda event: self.StartMove(0,-self.TiltSpeed.get()),self.StopMove, image='Arrow_D.png')
-                self.AddDirectionButton('↘', Frame_ButtonGrid, 3, 3, lambda event: self.StartMove(1,-self.TiltSpeed.get()),self.StopMove, image='Arrow_RD.png')
-                self.AddDirectionButton('Z+', Frame_ButtonGrid, 1, 5, self.ZoomIn,self.StopZoom, image='Button_Zoom_In.png')
+                self.AddDirectionButton('↖', Frame_ButtonGrid, 1, 1, lambda event:
+                                        self.StartMove(-self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image='Arrow_LU.png')
+                self.AddDirectionButton('⬆', Frame_ButtonGrid, 1, 2, lambda event:
+                                        self.StartMove(0,self.TiltSpeed.get()),self.StopMove, image='Arrow_U.png')
+                self.AddDirectionButton('↗', Frame_ButtonGrid, 1, 3, lambda event:
+                                        self.StartMove(self.PanSpeed.get(),self.TiltSpeed.get()),self.StopMove, image='Arrow_RU.png')
+                self.AddDirectionButton('⬅', Frame_ButtonGrid, 2, 1, lambda event:
+                                        self.StartMove(-self.PanSpeed.get(),0),self.StopMove, image='Arrow_L.png')
+                self.AddDirectionButton('➡', Frame_ButtonGrid, 2, 3, lambda event:
+                                        self.StartMove(self.PanSpeed.get(),0),self.StopMove, image='Arrow_R.png')
+                self.AddDirectionButton('↙', Frame_ButtonGrid, 3, 1, lambda event:
+                                        self.StartMove(-self.PanSpeed.get(),-self.TiltSpeed.get()),self.StopMove, image='Arrow_LD.png')
+                self.AddDirectionButton('⬇', Frame_ButtonGrid, 3, 2, lambda event:
+                                        self.StartMove(0,-self.TiltSpeed.get()),self.StopMove, image='Arrow_D.png')
+                self.AddDirectionButton('↘', Frame_ButtonGrid, 3, 3, lambda event:
+                                        self.StartMove(1,-self.TiltSpeed.get()),self.StopMove, image='Arrow_RD.png')
+                self.AddDirectionButton('Z+', Frame_ButtonGrid, 1, 5, self.ZoomIn,self.StopZoom,image='Button_Zoom_In.png')
                 self.AddDirectionButton('Z-', Frame_ButtonGrid, 2, 5, self.ZoomOut,self.StopZoom, image='Button_Zoom_Out.png')
                 self.AddDirectionButton('F+', Frame_ButtonGrid, 1, 6, self.FocusFar, self.StopFocus)
                 self.AddDirectionButton('F-', Frame_ButtonGrid, 2, 6, self.FocusNear, self.StopFocus)
@@ -538,11 +547,15 @@ class CameraController():
                 button.grid(column=2, row=2)
                 button.image=image
 
-                tk.Scale(Frame_ButtonGrid, variable=self.PanSpeed, from_=1,to_=15, orient='horizontal').grid(column=1, row=0, columnspan=3)
-                tk.Scale(Frame_ButtonGrid, variable=self.TiltSpeed, to_=1,from_=15, orient='vertical').grid(column=0,row=1, rowspan=3)
-                tk.Scale(Frame_ButtonGrid, variable=self.ZoomSpeed, to_=1,from_=15, orient='vertical').grid(column=4,row=1, rowspan=2)
+                tk.Scale(Frame_ButtonGrid, variable=self.PanSpeed, from_=1,to_=15, orient='horizontal'
+                         ).grid(column=1, row=0, columnspan=3)
+                tk.Scale(Frame_ButtonGrid, variable=self.TiltSpeed, to_=1,from_=15, orient='vertical'
+                         ).grid(column=0,row=1, rowspan=3)
+                tk.Scale(Frame_ButtonGrid, variable=self.ZoomSpeed, to_=1,from_=15, orient='vertical'
+                         ).grid(column=4,row=1, rowspan=2)
 
-                tk.Checkbutton(Frame_ButtonGrid, text='flip X', variable=self.webcamFlip, offvalue=1, onvalue=-1).grid(column=5, row=3, columnspan=2)
+                tk.Checkbutton(Frame_ButtonGrid, text='flip X', variable=self.webcamFlip, offvalue=1, onvalue=-1
+                               ).grid(column=5, row=3, columnspan=2)
 
 
                 ButtonRecenter= tk.Button(Frame_ButtonGrid,text='Recenter', command=self.CenterCamera)
@@ -774,7 +787,7 @@ class CameraController():
 
     def settingsMenuClosed(self, event):
         self.SettingsMenu=None
-        self.enableFrame(self.window)
+        #self.enableFrame(self.window)
         inputRouting.bindListenCancelSafe()
 
     def OpenSettingsMenu(self):
@@ -782,9 +795,10 @@ class CameraController():
 
             Settings.openSettings()
 
-            self.disableFrame(self.window)
+            #self.disableFrame(self.window)
 
             self.SettingsMenu = tk.Toplevel(self.window)
+            self.SettingsMenu.grab_set()
     
             self.SettingsMenu.geometry('1200x800')
 
@@ -967,15 +981,19 @@ class CameraController():
         debug.print('midi devices:')
         self.inputDevicesMidis = []
         self.inputDevicesMidiNames = []
+        self.outputDevicesMidis = []
         for i in range(pygame.midi.get_count()):
             info = pygame.midi.get_device_info(i)
             debug.print(info)
             if (info[2]==1):
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
-                self.inputDevicesMidiNames.append(str(pygame.midi.get_device_info(i)[1], 'utf-8'))
             else:
                 self.inputDevicesMidis.append(None)
-                self. inputDevicesMidiNames.append(None)
+            if (info[3]==1):
+                self.outputDevicesMidis.append(pygame.midi.Output(i))
+            else:
+                self.outputDevicesMidis.append(None)
+            self.inputDevicesMidiNames.append(str(pygame.midi.get_device_info(i)[1], 'utf-8'))
 
     def refreshInputDevicesControllers(self):
         debug.print ('controllers:')
@@ -1121,9 +1139,12 @@ class CameraController():
         deviceIndex = 0
 
         #TODO: implement RPN and NRPN checks
-        #NOTE: a ControlChange with control 6 is for RPN or NRPN messages, if it's immediately preceded by two ControlChanges with 101 and 100 (RPN) or 99 and 98 (NRPN)
-        #in that case, the control value of the two preceding control changes are the MSB and LSB of the command index, and the data of the control 6 command is the value of that message.
-        #I think it's supposed to also be able to use the second data byte in control 6 as an LSB for the value, but I'm unable to test that with this keyboard.
+        #NOTE: a ControlChange with control 6 is for RPN or NRPN messages,
+        #   if it's immediately preceded by two ControlChanges with 101 and 100 (RPN) or 99 and 98 (NRPN)
+        #in that case, the control value of the two preceding control changes are the MSB and LSB of the command index,
+        #   and the data of the control 6 command is the value of that message.
+        #I think it's supposed to also be able to use the second data byte in control 6 as an LSB for the value,
+        #   but I'm unable to test that with this keyboard.
         for device in self.inputDevicesMidis:
             if (device and device.poll()):
                 for event in device.read(1024):
@@ -1140,6 +1161,8 @@ class CameraController():
                             state = command == eventNoteOn #1 for noteOn, 0 for noteOff
                             for bind in Settings.commandBinds['midi']['note']:
                                 if (checkInputValidity(bind) and bind.inputNumber == key):
+                                    bind.midiDeviceLast=self.inputDevicesMidiNames[deviceIndex]
+                                    bind.midiChannelLast=channel
                                     bind.callCommand(state)
 
                     elif (command== eventControlChange):
@@ -1153,6 +1176,10 @@ class CameraController():
                             value = event[2]/127 #map to 0-1
                             for bind in Settings.commandBinds['midi']['control']:
                                 if (checkInputValidity(bind) and bind.inputNumber == control):
+
+                                    bind.midiDeviceLast=inputDevicesMidiNames[deviceIndex]
+                                    bind.midiChannelLast=channel
+
                                     valueProcessed=max(0,(value-bind.threshold)/(1-bind.threshold))
                                     if (deviceIndex not in bind.valueLast):
                                         bind.valueLast[deviceIndex]={channel:valueProcessed}
