@@ -36,6 +36,8 @@ class bindingControllerAxis(_bindingBase_):
 class bindables():
     thresholdDefaultController = .2
     thresholdDefaultMidiCC = .1
+
+    PresetWrite=False
     
     def _CameraRamp_(value, x, y):
         if (value): controller.current.StartMove(controller.current.PanSpeed.get()*x,controller.current.TiltSpeed.get()*y)
@@ -140,14 +142,29 @@ class bindables():
     def selectCamera7(value):
         bindables._selectCamera_(7)
 
+    def setPresetWrite(value):
+        bindables.PresetWrite=bool(value)
+        controller.current.TogglePresetEdit.SetState(bindables.PresetWrite)
+
     def activatePreset(buttonValue, presetName):
         if (buttonValue):
-            for preset in controller.current.CameraPresets:
+            triggered = False
+            for preset in controller.current.CamerasPresets:
                 if (preset and preset.isValid() and preset.name==presetName):
-                    preset.activatePreset()
-                
-                    #TODO: figure out of it's preferable to run the whole loop and trigger every matching preset, or just the first match
-                    #break
+                    if (bindables.PresetWrite):
+                        preset.saveToPreset()
+                    else:
+                        preset.activatePreset()
+                    triggered=True
+                    break
+            if (not triggered):
+                for preset in controller.current.CameraPresets:
+                    if (preset and preset.isValid() and preset.name==presetName):
+                        if (bindables.PresetWrite):
+                            preset.saveToPreset()
+                        else:
+                            preset.activatePreset()
+                        break
     
     bindablePresets=[]
 
@@ -186,6 +203,7 @@ class bindables():
                 'select_camera_5': (selectCamera5, 'button'),
                 'select_camera_6': (selectCamera6, 'button'),
                 'select_camera_7': (selectCamera7, 'button'),
+            'overwrite_preset':(setPresetWrite, 'button'),
             bindingPresets:(activatePreset,'button'),
             'pan_tilt_speed':(analogPTSpeed, 'analog'),
             'zoom_speed':(analogSetZSpeed, 'analog'),

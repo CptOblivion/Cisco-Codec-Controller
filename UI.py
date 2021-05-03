@@ -9,6 +9,8 @@ class Icons():
     def load():
         if (not Icons.init):
             Icons.iconWarning=tk.PhotoImage(file=Assets.getAsset('Icon_Warning.png'))
+            #TODO: resize to current pixel height of a row of text
+    
 
 class ToggleButton(tk.Button):
 
@@ -278,6 +280,8 @@ class bindingFrame(tk.Frame):
                 bindingFrame.conflicts[self].append(binding)
             self.conflictIcon.config(image=Icons.iconWarning)
             self.master.root.conflictIcon.config(image=Icons.iconWarning)
+            if (self.master.root.categoryFrame):
+                self.master.root.categoryFrame.root.conflictIcon.config(image=Icons.iconWarning)
     def removeConflict(self, binding):
         if (binding != self):
             if (self in bindingFrame.conflicts):
@@ -286,15 +290,21 @@ class bindingFrame(tk.Frame):
                     if (len(bindingFrame.conflicts[self])==0):
                         del bindingFrame.conflicts[self]
                         self.conflictIcon.config(image='')
-            else:
-                self.conflictIcon.config(image='')
-            frameClear=True
-            for child in self.master.winfo_children():
-                if (child in bindingFrame.conflicts):
-                    frameClear=False
-                    break
-            if (frameClear):
-                self.master.root.conflictIcon.config(image='')
+                        frameClear=True
+                        for child in self.master.winfo_children():
+                            if (child in bindingFrame.conflicts):
+                                frameClear=False
+                                break
+                        if (frameClear):
+                            self.master.root.conflictIcon.config(image='')
+                            if (self.master.root.categoryFrame):
+                                frameClear=True
+                                for child in self.master.root.categoryFrame.winfo_children():
+                                    if (self.master.root.conflictIcon.cget('image') !=''):
+                                        frameClear=False
+                                        break
+                                if (frameClear):
+                                    self.master.root.categoryFrame.root.conflictIcon.config(image='')
 
     def checkConflict(self, changedBinding, removed=False):
         if (changedBinding != self):
@@ -476,6 +486,7 @@ class ControlBindPanel(ToggleFrame):
         Icons.load()
         self.bindableName = bindableName
         self.command = command
+        self.categoryFrame=None
         #self.config(highlightbackground='black', highlightthickness=1)
         
         self.conflictIcon=tk.Label(self.Titlebar)
@@ -556,6 +567,8 @@ class ControlBindPresetPanel(ControlBindPanel):
 
         def deleteButton():
             ControlBindPresetPanel.bindsList.remove(self)
+            for binding in self.BindingList.winfo_children():
+                Settings.changeMade(binding, removed=True)
             self.destroy()
 
         tk.Button(self.Titlebar, text='X', command=deleteButton).pack(side='left')
@@ -573,7 +586,7 @@ class CameraPresetPanel(tk.Frame):
         self.index = index
         self.presetId=None #for global presets, index and presetID are identical and immutable
         if (cameraId == 0): self.presetId=index
-        self.cameraId=cameraId #set to 0 for Cameras instead of Camera (make sure to use "is not None" when checking if this variable is set!)
+        self.cameraId=cameraId #set to 0 for Cameras instead of Camera
         self.name=None
         #self.listPosition=index
 

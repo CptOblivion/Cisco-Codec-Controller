@@ -811,12 +811,15 @@ class CameraController():
                                               buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3),
                                               relief='groove', borderwidth=2)
                     categoryFrame.pack(fill='x', expand=True)
+                    categoryFrame.conflictIcon=tk.Label(categoryFrame.Titlebar)
+                    categoryFrame.conflictIcon.pack(side='left', before=categoryFrame.expandButton)
                     categoryFrame=categoryFrame.contentFrame
                     if (key == bindables.bindingPresets):
-                        def addNewPreset(frame): #TODO: move to root of class
+                        def addNewPreset(frame):
                             newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed',
                                                             bindables.index[key], 'unnamed', Settings.tempBinds,
                                                             newBinding=True)
+                            newPanel.categoryFrame=categoryFrame
                             newPanel.pack(fill='x', expand=True)
                             Settings.tempBinds.append(newPanel)
 
@@ -824,23 +827,26 @@ class CameraController():
                         panelSide.pack(side='left', fill='y')
                         panelBody=tk.Frame(categoryFrame)
                         panelBody.pack(side='left', fill='x')
+                        panelBody.root=categoryFrame.root
                         tk.Button(panelSide, text='+', command=lambda frame=panelBody: addNewPreset(frame)).pack()
 
                         for pkey in bindables.bindablePresets:
                             Settings.tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey,
                                                                     bindables.index[key], pkey, Settings.tempBinds))
+                            Settings.tempBinds[i].categoryFrame=categoryFrame
                             Settings.tempBinds[i].pack(fill='x', expand=True)
                             i+=1
                         categoryFrame=None
                         categoryEnd=None
                 else:
                     if(categoryFrame):
-                        packFrame=categoryFrame
+                        newPanel=ControlBindPanel(categoryFrame, key, bindables.index[key])
+                        newPanel.categoryFrame=categoryFrame
                         if (key==categoryEnd):
                             categoryEnd=categoryFrame=None
                     else:
-                        packFrame=bindingsList.contents
-                    Settings.tempBinds.append(ControlBindPanel(packFrame, key, bindables.index[key]))
+                        newPanel=ControlBindPanel(bindingsList.contents, key, bindables.index[key])
+                    Settings.tempBinds.append(newPanel)
                     Settings.tempBinds[i].pack(fill='x', expand=True)
                     i+=1
 
