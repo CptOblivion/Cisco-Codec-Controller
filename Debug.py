@@ -3,7 +3,7 @@ import traceback
 import datetime
 
 class debug():
-    logfileName = 'Error_Log.txt_'+VersionNumber
+    logfileName = 'Error_Log_'+VersionNumber+'.txt'
     #turning this to True will force the UI to always show Camera 2 and 3 as connected
     forceCameraConnection = False
     

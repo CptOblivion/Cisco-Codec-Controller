@@ -192,16 +192,23 @@ class bindables():
             if (triggered):
                 if (bindables.lastPresetBinding):
                     device=bindables._getMidiOutput(bindables.lastPresetBinding)
-                    if (device[0] and binding.subdevice=='note'):
-                        #TODO: check if the binding was a note or a CC
-                        device.note_off(bindables.lastPresetBinding.inputNumber,
-                                        channel=device[1])
+                    if (device[0]):
+                        if (binding.subdevice=='note'):
+                            device.note_off(bindables.lastPresetBinding.inputNumber,
+                                            channel=device[1])
+                        else:
+                            device.write_short(0xb000+device[1],bindables.lastPresetBinding.inputNumber, 0)
+
                 bindables.lastPresetBinding=binding
                 if (isinstance(binding, bindingMidi)):
                     device=bindables._getMidiOutput(binding)
-                    if (device[0] and binding.subdevice=='note'):
-                        device.note_on(binding.inputNumber, velocity=63,
-                                       channel=device[1])
+                    if (device[0]):
+                        if (binding.subdevice=='note'):
+                            device.note_on(binding.inputNumber, velocity=63,
+                                           channel=device[1])
+                        else:
+                            device.write_short(0xb0+device[1],binding.inputNumber, 127)
+
     
     bindablePresets=[]
 

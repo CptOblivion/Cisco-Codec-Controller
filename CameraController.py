@@ -985,6 +985,7 @@ class CameraController():
         for i in range(pygame.midi.get_count()):
             info = pygame.midi.get_device_info(i)
             debug.print(info)
+            print(info)
             if (info[2]==1):
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
             else:
@@ -1177,7 +1178,7 @@ class CameraController():
                             for bind in Settings.commandBinds['midi']['control']:
                                 if (checkInputValidity(bind) and bind.inputNumber == control):
 
-                                    bind.midiDeviceLast=inputDevicesMidiNames[deviceIndex]
+                                    bind.midiDeviceLast=self.inputDevicesMidiNames[deviceIndex]
                                     bind.midiChannelLast=channel
 
                                     valueProcessed=max(0,(value-bind.threshold)/(1-bind.threshold))
