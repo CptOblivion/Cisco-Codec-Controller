@@ -319,10 +319,10 @@ class CameraController():
 
 
         sendString = 'PositionSet'
-        if (p is not None and p!= self.CameraPan):
+        if (p is not None and p!= Camera.selected.position[0]):
             self.PanningStart()
             sendString += ' Pan: ' + str(p*panRange)
-        if (t is not None and t != self.CameraTilt):
+        if (t is not None and t != Camera.selected.position[1]):
             self.TiltingStart()
             sendString += ' Tilt: ' + str(t*tiltRange)
 
