@@ -1159,7 +1159,7 @@ class CameraController():
                                 inputRouting.bindCommand('midi', 'note', 'button',
                                                          (self.inputDevicesMidiNames[deviceIndex], channel, key))
                         else:
-                            state = command == eventNoteOn #1 for noteOn, 0 for noteOff
+                            state = command == eventNoteOn and event[1]>0 #1 for noteOn, 0 for noteOff, velocity 0 is always off
                             for bind in Settings.commandBinds['midi']['note']:
                                 if (checkInputValidity(bind) and bind.inputNumber == key):
                                     bind.midiDeviceLast=self.inputDevicesMidiNames[deviceIndex]
