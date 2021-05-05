@@ -241,8 +241,6 @@ class CameraController():
         #because it's coming from a tk.Entry, presetNum is a str (either '' or str(int))
         if (camNum is None): camNum=Camera.selectedNum
         if (camNum == 0):
-            #TODO: add several presets: weird behavior where it overwrites the first preset every time
-            #TODO: recall preset position is wrong?
             num=''
             if (numField):
                 num=numField.get()
@@ -263,8 +261,10 @@ class CameraController():
             self.shell.send('xCommand Preset Store PresetId: '
                             + num + ' Type:Camera Description: "'+name+'"\n')
         else:
-            if (name is None):
+            if (nameField is None):
                 name='unnamed'
+            else:
+                name=nameField.get()
             self.shell.send('xCommand Camera Preset Store CameraId: ' + str(camNum) + ' Name: "'+name+'"\n')
 
     def InitializePresetLists(self):

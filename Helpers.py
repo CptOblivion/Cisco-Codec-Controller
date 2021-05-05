@@ -3,7 +3,7 @@ import time
 import os
 import tkinter as tk
 
-VersionNumber = '0.56.1' #previous: 0.55
+VersionNumber = '0.56.2' #previous: 0.56.1
 
 class deltaTime():
     lastTime=0
@@ -15,8 +15,10 @@ class deltaTime():
         
 class Assets():
     def getAsset(asset):
-        basePath=getattr(sys, '_MEIPASS', os.path.abspath('.')) #abspath(__file__) instead?
-        return os.path.join(basePath, 'Assets', asset)
+        if (hasattr(sys, '_MEIPASS')):
+            return os.path.join(sys._MEIPASS, 'Assets', asset)
+        else:
+            return os.path.join('Assets', asset)
 
 class controller():
     #easy link to get the current CameraController instance
