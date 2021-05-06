@@ -112,6 +112,7 @@ class Settings():
             Settings.parseBindings(bindingString)
             Settings.config['Startup']['Bindings'] = bindingString
             Settings.SaveConfig()
+            Settings.unsavedChanges=False
         return bindingString
     def parseBindings(bindingString):
         Settings.commandBinds = deepcopy(Settings.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way

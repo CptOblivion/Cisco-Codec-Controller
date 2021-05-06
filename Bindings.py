@@ -76,6 +76,16 @@ class bindables():
         bindables._CameraRamp_(value, 1,-1)
     def bothTriggerAutofocus(binding, value):
         if (controller.current.init and value): controller.current.TriggerAutofocus()
+    def buttonZoomIn(binding, value):
+        if (value):
+            controller.current.ZoomIn(None)
+        else:
+            controller.current.StopZoom(None)
+    def buttonZoomOut(binding, value):
+        if (value):
+            controller.current.ZoomOut(None)
+        else:
+            controller.current.StopZoom(None)
     def buttonFocusNear(binding, value):
         if (controller.current.init and value): controller.current.FocusNear(None)
         else: controller.current.StopFocus(None)
@@ -212,11 +222,15 @@ class bindables():
     
     bindablePresets=[]
 
-    bindingCategory = '__CATEGORY__' #append this to the beginning of a key to mark that entry as a category rather than a proper entry
+    #append this to the beginning of a key to mark that entry as a category rather than a proper entry
+    #the contents of the dictionary entry should be the name of the last function in the category
+    bindingCategory = '__CATEGORY__' 
+
+
     bindingPresets=bindingCategory+'activate presets' #special category entry for camera presets (processed uniquely)
-    bindingPresetsPrefix='preset_' #actual preset bindings saved in the ini start with this
+    bindingPresetsPrefix='preset_' #actual preset bindings as they appear in the ini start with this
     index = {
-            bindingCategory+'move digital':'move_right_down', #collapsible categories contain all entries up to (and including) the key they contain
+            bindingCategory+'move digital':'focus_far', #collapsible categories contain all entries up to (and including) the key they contain
                 'move_left':(buttonPanL, 'button'),
                 'move_right':(buttonPanR, 'button'),
                 'move_up':(buttonPanU, 'button'),
@@ -225,7 +239,11 @@ class bindables():
                 'move_right_up':(buttonPanUR, 'button'),
                 'move_left_down':(buttonPanDL, 'button'),
                 'move_right_down':(buttonPanDR, 'button'),
-            bindingCategory+'move ramp analog':'ramp_focus',
+                'zoom_in':(buttonZoomIn, 'button'),
+                'zoom_out':(buttonZoomOut, 'button'),
+                'focus_near':(buttonFocusNear, 'button'),
+                'focus_far':(buttonFocusFar, 'button'),
+            bindingCategory+'move analog':'ramp_focus',
                 'ramp_pan':(analogRampPan, 'analog'),
                 'ramp_tilt':(analogRampTilt, 'analog'),
                 'ramp_zoom':(analogRampZoom, 'analog'),
@@ -236,8 +254,6 @@ class bindables():
                 'zoom_direct':(analogZoomDirect, 'analog'),
                 'focus_direct':(analogFocusDirect, 'analog'),
             'trigger_autofocus':(bothTriggerAutofocus, 'button'),
-            'focus_near':(buttonFocusNear, 'button'),
-            'focus_far':(buttonFocusFar, 'button'),
             'refresh_position': (bothRefreshPosition, 'both'),
             bindingCategory+'select camera':'select_camera_7',
                 'select_camera_1': (selectCamera1, 'button'),
