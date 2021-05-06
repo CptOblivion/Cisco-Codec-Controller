@@ -183,11 +183,17 @@ class inputRouting():
         inputRouting.bindListenCancel()
         inputRouting.settingsListenForInput = bindingFrame
         bindingFrame.listenButton.config(relief='sunken')
+        controller.current.SettingsMenu.bind('<KeyPress-Escape>', inputRouting.bindListenCancelInput)
+        controller.current.SettingsMenu.bind('<Button 1>', inputRouting.bindListenCancelInput)
 
+    def bindListenCancelInput(discard):
+        inputRouting.bindListenCancel()
     def bindListenCancelSafe():
         inputRouting.expectedType=None
         inputRouting.settingsListenForInput = None
-    def bindListenCancel(): 
+    def bindListenCancel():
+        controller.current.SettingsMenu.unbind('<KeyPress-Escape>')
+        controller.current.SettingsMenu.unbind('<Button 1>')
         if (inputRouting.settingsListenForInput):
             inputRouting.settingsListenForInput.listenButton.config(relief='raised')
         inputRouting.bindListenCancelSafe()
