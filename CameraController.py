@@ -785,6 +785,14 @@ class CameraController():
             else:
                 self.enableFrame(child)
 
+    def closeSettings(self):
+        if (Settings.unsavedChanges):
+            confirmClose=messagebox.askokcancel('Close','Unsaved changes! Close anyway?')
+            if (confirmClose):
+                self.SettingsMenu.destroy()
+        else:
+            self.SettingsMenu.destroy()
+
     def settingsMenuClosed(self, event):
         self.SettingsMenu=None
         #self.enableFrame(self.window)
@@ -798,6 +806,8 @@ class CameraController():
             #self.disableFrame(self.window)
 
             self.SettingsMenu = tk.Toplevel(self.window)
+            self.SettingsMenu.protocol('WM_DELETE_WINDOW', self.closeSettings)
+
             self.SettingsMenu.grab_set()
     
             self.SettingsMenu.geometry('1200x800')
