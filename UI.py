@@ -1,7 +1,6 @@
 from Helpers import *
 from Bindings import *
 from Camera import *
-from Settings import *
 
 iconWarning=None
 class Icons():
@@ -10,7 +9,11 @@ class Icons():
         if (not Icons.init):
             Icons.iconWarning=tk.PhotoImage(file=Assets.getAsset('Icon_Warning.png'))
             #TODO: resize to current pixel height of a row of text
-    
+class UISettingsProxy():
+    #class to reach a couple functions in Settings, to avoid circular importing
+    changeMade=None
+    commandBinds=None
+    inputRoutingBindListen=None
 
 class ToggleButton(tk.Button):
 
@@ -177,7 +180,7 @@ class bindingFrame(tk.Frame):
             if (self.rules=='int'): self.rulesInt(self.get())
             elif (self.rules=='midi'): self.rulesMidi(self.get())
             elif (self.rules=='midiString'): self.rulesMidiString(self.get())
-            Settings.changeMade(self.bindingFrame)
+            UISettingsProxy.changeMade(self.bindingFrame)
 
         def rulesMidi(self, input):
             #convert string into a valid midi channel (int or 'any')
@@ -236,7 +239,7 @@ class bindingFrame(tk.Frame):
         if True:
             self.conflictIcon=tk.Label(self.titlebar)
             self.listenButton = tk.Button(self.titlebar, text='listen for input',
-                                          command=lambda:inputRouting.bindListen(self, ))
+                                          command=lambda:UISettingsProxy.inputRoutingBindListen(self))
             self.deviceTypeLabel = tk.OptionMenu(self.titlebar, self.deviceType, bindingFrame.labelUnassignedDevice,
                                                  'controller', 'midi', command=self.changeDeviceType)
             self.deviceSubtypeLabel = tk.OptionMenu(self.titlebar, self.deviceSubtype,
@@ -252,7 +255,7 @@ class bindingFrame(tk.Frame):
         self.setDevice(deviceType, deviceSubtype, contents)
 
     def destroySelf(self):
-        Settings.changeMade(self, removed=True)
+        UISettingsProxy.changeMade(self, removed=True)
         self.destroy()
     def compareBind(self, binding):
         if (self.contents and binding.contents and self.deviceType.get()==binding.deviceType.get() and
@@ -321,19 +324,20 @@ class bindingFrame(tk.Frame):
 
         return(len(bindingFrame.conflicts)>0)
 
-    #versions of changeMade with different amounts of inputs (that will be discarded, and pass self along to Settings.changeMade
+    #versions of changeMade with different amounts of inputs
+    #   (that will be discarded, and pass self along to UISettingsProxy.changeMade
     #instead of making a bunch of the same lambda to discard inputs
     def changeMade0(self):
-        Settings.changeMade(self)
+        UISettingsProxy.changeMade(self)
     def changeMade1(self, value):
-        Settings.changeMade(self)
+        UISettingsProxy.changeMade(self)
     def changeDeviceType(self, deviceType):
         if (self.deviceTypeLast != deviceType):
-            Settings.changeMade(self)
+            UISettingsProxy.changeMade(self)
             self.setDevice(deviceType, None)
     def changeDeviceSubtype(self, deviceSubtype):
         if (self.deviceSubtypeLast != deviceSubtype):
-            Settings.changeMade(self)
+            UISettingsProxy.changeMade(self)
             self.setDevice(self.deviceType.get(), deviceSubtype)
     def setDevice(self, deviceType, deviceSubtype, contents=None):
         if (self.deviceTypeLast != deviceType or self.deviceSubtypeLast != deviceSubtype):
@@ -515,17 +519,17 @@ class ControlBindPanel(ToggleFrame):
 
          #digital inputs can only be bound to button commands, or commands that handle their own input
         if (command[1]=='button' or command[1]=='both'):
-            for binding in Settings.commandBinds['midi']['note']:
+            for binding in UISettingsProxy.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',
                                     contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber))
             b=0
-            for binding in Settings.commandBinds['controller']['button']:
+            for binding in UISettingsProxy.commandBinds['controller']['button']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='controller', deviceSubtype='button', contents=[b])
                 b+=1
             h = 0
-            for hat in Settings.commandBinds['controller']['hat']:
+            for hat in UISettingsProxy.commandBinds['controller']['hat']:
                 direction=0
                 for binding in hat:
                     if (compareCommand()):
@@ -534,12 +538,12 @@ class ControlBindPanel(ToggleFrame):
                 h+=1
 
         #analog inputs can always be bound to button commands, as long as the threshold is properly set
-        for binding in Settings.commandBinds['midi']['control']:
+        for binding in UISettingsProxy.commandBinds['midi']['control']:
             if (compareCommand()):
                 self.AddBinding(deviceType='midi', deviceSubtype='control',
                                 contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber, binding.threshold))
         a=0
-        for binding in Settings.commandBinds['controller']['axis']:
+        for binding in UISettingsProxy.commandBinds['controller']['axis']:
             if (compareCommand()):
                 self.AddBinding(deviceType='controller', deviceSubtype='axis',
                                 contents=[a, binding.type,binding.flip, binding.threshold])
@@ -549,7 +553,7 @@ class ControlBindPanel(ToggleFrame):
         newBinding=bindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
                      deviceSubtype=deviceSubtype, contents=contents)
         newBinding.pack(fill='x', padx=2, pady=2)
-        Settings.changeMade(newBinding)
+        UISettingsProxy.changeMade(newBinding)
 
 class ControlBindPresetPanel(ControlBindPanel):
     def __init__(self, parent, bindableName, command, presetName, bindsList, newBinding=False, **options):
@@ -569,7 +573,7 @@ class ControlBindPresetPanel(ControlBindPanel):
         def deleteButton():
             ControlBindPresetPanel.bindsList.remove(self)
             for binding in self.BindingList.winfo_children():
-                Settings.changeMade(binding, removed=True)
+                UISettingsProxy.changeMade(binding, removed=True)
             self.destroy()
 
         tk.Button(self.Titlebar, text='X', command=deleteButton).pack(side='left')

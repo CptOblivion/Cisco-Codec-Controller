@@ -819,73 +819,21 @@ class CameraController():
                 tk.Checkbutton(debugToggleFrame, text='mute codec responses',
                                variable=debug.muteCodecResponse, command=Settings.toggleMuteCodecPrints).pack(side='left')
                 
+            Settings.buildBindingsFrame()
 
-
-            bindingsList = ScrollFrame(self.SettingsMenu, maxHeight=400)
-
-            Settings.tempBinds=[]
-            i=0
-            categoryFrame=None
-            categoryEnd=None
-            for key in bindables.index:
-                if (key.startswith(bindables.bindingCategory)):
-                    categoryEnd=bindables.index[key]
-                    title=key[len(bindables.bindingCategory):]
-                    categoryFrame=ToggleFrame(bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title,
-                                              buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3),
-                                              relief='groove', borderwidth=2)
-                    categoryFrame.pack(fill='x', expand=True)
-                    categoryFrame.conflictIcon=tk.Label(categoryFrame.Titlebar)
-                    categoryFrame.conflictIcon.pack(side='left', before=categoryFrame.expandButton)
-                    categoryFrame=categoryFrame.contentFrame
-                    if (key == bindables.bindingPresets):
-                        def addNewPreset(frame):
-                            newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed',
-                                                            bindables.index[key], 'unnamed', Settings.tempBinds,
-                                                            newBinding=True)
-                            newPanel.categoryFrame=categoryFrame
-                            newPanel.pack(fill='x', expand=True)
-                            Settings.tempBinds.append(newPanel)
-
-                        panelSide=tk.Frame(categoryFrame)
-                        panelSide.pack(side='left', fill='y')
-                        panelBody=tk.Frame(categoryFrame)
-                        panelBody.pack(side='left', fill='x')
-                        panelBody.root=categoryFrame.root
-                        tk.Button(panelSide, text='+', command=lambda frame=panelBody: addNewPreset(frame)).pack()
-
-                        for pkey in bindables.bindablePresets:
-                            Settings.tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey,
-                                                                    bindables.index[key], pkey, Settings.tempBinds))
-                            Settings.tempBinds[i].categoryFrame=categoryFrame
-                            Settings.tempBinds[i].pack(fill='x', expand=True)
-                            i+=1
-                        categoryFrame=None
-                        categoryEnd=None
-                else:
-                    if(categoryFrame):
-                        newPanel=ControlBindPanel(categoryFrame, key, bindables.index[key])
-                        newPanel.categoryFrame=categoryFrame
-                        if (key==categoryEnd):
-                            categoryEnd=categoryFrame=None
-                    else:
-                        newPanel=ControlBindPanel(bindingsList.contents, key, bindables.index[key])
-                    Settings.tempBinds.append(newPanel)
-                    Settings.tempBinds[i].pack(fill='x', expand=True)
-                    i+=1
-
+            #TODO: put frameFooter and self.SettingsMenu.bindingsList in a collapsable frame together
             frameFooter = tk.Frame(self.SettingsMenu)
             if True:
-                Settings.saveButton= tk.Button(frameFooter, text='save', command=Settings.SaveBindings)#, state='disabled')
+                Settings.saveButton= tk.Button(frameFooter, text='save', command=Settings.SaveBindings)
                 Settings.saveButton.pack(side='right')
                 Settings.unsavedChangesWarning=tk.Label(frameFooter, text='Unsaved Changes!')
+                tk.Button(frameFooter, text='reset bindings', command=Settings.resetBindingsButton).pack(side='left')
             settingsTitle = tk.Label(self.SettingsMenu, text='Settings')
             settingsTitle.pack()
             settingsTitle.bind('<Destroy>', self.settingsMenuClosed)
             debugToggleFrame.pack(fill='x')
-            bindingsList.pack(fill='both', expand=True)
+            self.SettingsMenu.bindingsList.pack(fill='both', expand=True)
             frameFooter.pack(padx=3, pady=3, fill='x')
-            Settings.comparisonString=Settings.SaveBindings(save=False)
         else:
             #TODO: remove this dumb gag
             window=tk.Toplevel(self.window)

@@ -3,6 +3,7 @@ from configparser import ConfigParser
 from copy import deepcopy
 from Bindings import *
 from Debug import *
+from UI import *
 
 class Settings():
     iniFilename='CameraController_'+VersionNumber+'.ini' 
@@ -74,9 +75,72 @@ class Settings():
         Settings.unsavedChangesWarning=None
         Settings.saveButton=None
         Settings.comparisonString=None
+        Settings.building=True
+    def buildBindingsFrame(freshFrame=True):
+        if (freshFrame):
+            controller.current.SettingsMenu.bindingsList = ScrollFrame(controller.current.SettingsMenu, maxHeight=400)
+            UISettingsProxy.changeMade=Settings.changeMade
+            UISettingsProxy.commandBinds=Settings.commandBinds
+            UISettingsProxy.inputRoutingBindListen=inputRouting.bindListen
+        Settings.building=True
+        Settings.tempBinds=[]
+        i=0
+        categoryFrame=None
+        categoryEnd=None
+        for key in bindables.index:
+            if (key.startswith(bindables.bindingCategory)):
+                categoryEnd=bindables.index[key]
+                title=key[len(bindables.bindingCategory):]
+                categoryFrame=ToggleFrame(controller.current.SettingsMenu.bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title,
+                                            buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3),
+                                            relief='groove', borderwidth=2)
+                categoryFrame.pack(fill='x', expand=True)
+                categoryFrame.conflictIcon=tk.Label(categoryFrame.Titlebar)
+                categoryFrame.conflictIcon.pack(side='left', before=categoryFrame.expandButton)
+                categoryFrame=categoryFrame.contentFrame
+                if (key == bindables.bindingPresets):
+                    def addNewPreset(frame):
+                        newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed',
+                                                        bindables.index[key], 'unnamed', Settings.tempBinds,
+                                                        newBinding=True)
+                        newPanel.categoryFrame=categoryFrame
+                        newPanel.pack(fill='x', expand=True)
+                        Settings.tempBinds.append(newPanel)
+
+                    panelSide=tk.Frame(categoryFrame)
+                    panelSide.pack(side='left', fill='y')
+                    panelBody=tk.Frame(categoryFrame)
+                    panelBody.pack(side='left', fill='x')
+                    panelBody.root=categoryFrame.root
+                    tk.Button(panelSide, text='+', command=lambda frame=panelBody: addNewPreset(frame)).pack()
+
+                    for pkey in bindables.bindablePresets:
+                        Settings.tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey,
+                                                                bindables.index[key], pkey, Settings.tempBinds))
+                        Settings.tempBinds[i].categoryFrame=categoryFrame
+                        Settings.tempBinds[i].pack(fill='x', expand=True)
+                        i+=1
+                    categoryFrame=None
+                    categoryEnd=None
+            else:
+                if(categoryFrame):
+                    newPanel=ControlBindPanel(categoryFrame, key, bindables.index[key])
+                    newPanel.categoryFrame=categoryFrame
+                    if (key==categoryEnd):
+                        categoryEnd=categoryFrame=None
+                else:
+                    newPanel=ControlBindPanel(controller.current.SettingsMenu.bindingsList.contents, key, bindables.index[key])
+                Settings.tempBinds.append(newPanel)
+                Settings.tempBinds[i].pack(fill='x', expand=True)
+                i+=1
+        Settings.comparisonString=Settings.generateBindingString()
+        Settings.building=False
     def changeMade(changedBinding, removed=False):
-        if (Settings.unsavedChangesWarning):
-            if (Settings.SaveBindings(save=False) !=Settings.comparisonString):
+        if (Settings.unsavedChangesWarning and not Settings.building):
+            if (removed): bindingString=Settings.generateBindingString(ignore=changedBinding)
+            else: bindingString=Settings.generateBindingString()
+            print(bindingString)
+            if (bindingString !=Settings.comparisonString):
                 Settings.unsavedChanges=True
                 Settings.unsavedChangesWarning.pack(side='right')
                 
@@ -95,25 +159,42 @@ class Settings():
     def toggleVerboseDebugPrints():
         Settings.config['Startup']['PrintVerbose']=str(debug.printVerbose.get())
         Settings.SaveConfig()
+
     def toggleMuteCodecPrints():
         Settings.config['Startup']['MuteCodecResponse']=str(debug.muteCodecResponse.get())
         Settings.SaveConfig()
-    def SaveBindings(save=True):
-        if (save):
-            Settings.saveButton.focus_set() #make sure we focus this widget first, calling focusout on currently focused widget
 
+    def resetBindingsButton():
+        confirmReset=messagebox.askokcancel('Reset bindings', 'Reset bindings to defaults?')
+        if (confirmReset):
+            Settings.resetBindings()
+
+    def resetBindings():
+        for child in controller.current.SettingsMenu.bindingsList.contents.winfo_children():
+            child.destroy()
+        Settings.SaveBindings(bindingString=Settings.Defaults['Startup']['Bindings'])
+        Settings.buildBindingsFrame(freshFrame=False)
+
+    def SaveBindings(bindingString=None):
+        Settings.saveButton.focus_set() #make sure we focus this widget first, calling focusout on currently focused widget
+        if (not bindingString): bindingString=Settings.generateBindingString()
+        Settings.parseBindings(bindingString)
+        Settings.unsavedChangesWarning.forget()
+        Settings.unsavedChanges=False
+        Settings.comparisonString=bindingString
+        Settings.config['Startup']['Bindings'] = bindingString
+        Settings.SaveConfig()
+
+    def generateBindingString(ignore=None):
         bindingString = ''
         for command in Settings.tempBinds:
             for child in command.BindingList.winfo_children():
-                output = child.makeOutput(command.bindableName)
-                if (output):
-                    bindingString += output+'\n'
-        if (save):
-            Settings.parseBindings(bindingString)
-            Settings.config['Startup']['Bindings'] = bindingString
-            Settings.SaveConfig()
-            Settings.unsavedChanges=False
+                if (child != ignore):
+                    output = child.makeOutput(command.bindableName)
+                    if (output):
+                        bindingString += output+'\n'
         return bindingString
+
     def parseBindings(bindingString):
         Settings.commandBinds = deepcopy(Settings.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
         lines=bindingString.splitlines()
@@ -165,8 +246,8 @@ class Settings():
                         hatNum, hatDirection = segments[2:]
                         Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(
                             bindingControllerButton(command))
+        UISettingsProxy.commandBinds=Settings.commandBinds
         
-        if (hasattr(Settings, 'unsavedChangesWarning')): Settings.unsavedChangesWarning.forget()
 
 class inputRouting():
     settingsListenForInput = None
@@ -178,8 +259,6 @@ class inputRouting():
             Settings.changeMade(inputRouting.settingsListenForInput)
             inputRouting.bindListenCancel()
     def bindListen(bindingFrame):
-        #TODO: bind 'esc' to bindListenCancel() (which should, in turn, unbind esc)
-        #TODO: also bind clicking anywhere to cancel
         inputRouting.bindListenCancel()
         inputRouting.settingsListenForInput = bindingFrame
         bindingFrame.listenButton.config(relief='sunken')
@@ -188,12 +267,12 @@ class inputRouting():
 
     def bindListenCancelInput(discard):
         inputRouting.bindListenCancel()
-    def bindListenCancelSafe():
-        inputRouting.expectedType=None
-        inputRouting.settingsListenForInput = None
     def bindListenCancel():
         controller.current.SettingsMenu.unbind('<KeyPress-Escape>')
         controller.current.SettingsMenu.unbind('<Button 1>')
         if (inputRouting.settingsListenForInput):
             inputRouting.settingsListenForInput.listenButton.config(relief='raised')
         inputRouting.bindListenCancelSafe()
+    def bindListenCancelSafe():
+        inputRouting.expectedType=None
+        inputRouting.settingsListenForInput = None
