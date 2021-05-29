@@ -935,6 +935,13 @@ class CameraController():
     def QueueInput(self, command):
         self.inputBuffer=command
 
+    def clearFeedback(self, deviceIndex):
+        if (self.getMidiName(deviceIndex)=='Launchpad Mini'):
+            device=self.outputDevicesMidis[deviceIndex]
+            for i in range(121):
+                device.note_on(i, velocity=0, channel=0)
+    def getMidiName(self, deviceIndex):
+        return str(pygame.midi.get_device_info(deviceIndex)[1], 'utf-8')
     def refreshInputDevicesMidi(self):
         debug.print('midi devices:')
         self.inputDevicesMidis = []
@@ -943,16 +950,21 @@ class CameraController():
         for i in range(pygame.midi.get_count()):
             info = pygame.midi.get_device_info(i)
             debug.print(info)
-            print(info)
+            name=self.getMidiName(i)
+            print(name)
             if (info[2]==1):
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
             else:
                 self.inputDevicesMidis.append(None)
             if (info[3]==1):
                 self.outputDevicesMidis.append(pygame.midi.Output(i))
+                self.clearFeedback(i)
+                if (name in self.inputDevicesMidiNames):
+                    bindables.midiIOMapping[self.inputDevicesMidiNames.index(name)]=i
             else:
                 self.outputDevicesMidis.append(None)
-            self.inputDevicesMidiNames.append(str(pygame.midi.get_device_info(i)[1], 'utf-8'))
+            self.inputDevicesMidiNames.append(name)
+        print(bindables.midiIOMapping)
 
     def refreshInputDevicesControllers(self):
         debug.print ('controllers:')
