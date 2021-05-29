@@ -1,10 +1,9 @@
 from Helpers import *
-from Settings import Settings
 import traceback
 import datetime
 
 class debug():
-    logfileName = 'Error_Log.txt_'+VersionNumber
+    logfileName = 'Error_Log_'+VersionNumber+'.txt'
     #turning this to True will force the UI to always show Camera 2 and 3 as connected
     forceCameraConnection = False
     
@@ -12,10 +11,10 @@ class debug():
     verbosePrints = False
 
     def print(message):
-        if (Settings.printVerbose.get()):
+        if (debug.printVerbose.get()):
             print(message)
     def printCodec(message):
-        if (not Settings.muteCodecResponse.get()):
+        if (not debug.muteCodecResponse.get()):
             print(message)
     def writeErrorLog():
         #message=sys.exc_info()

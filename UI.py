@@ -2,6 +2,19 @@ from Helpers import *
 from Bindings import *
 from Camera import *
 
+iconWarning=None
+class Icons():
+    init=False
+    def load():
+        if (not Icons.init):
+            Icons.iconWarning=tk.PhotoImage(file=Assets.getAsset('Icon_Warning.png'))
+            #TODO: resize to current pixel height of a row of text
+class UISettingsProxy():
+    #class to reach a couple functions in Settings, to avoid circular importing
+    changeMade=None
+    commandBinds=None
+    inputRoutingBindListen=None
+
 class ToggleButton(tk.Button):
 
     def __init__(self, parent, textOn='on', textOff='off', toggleCommand=None, *args, **options):
@@ -80,6 +93,7 @@ class ToggleFrame(tk.Frame):
         self.expandButton.pack(side=self.TogglePin)
 
         self.contentFrame = tk.Frame(self) 
+        self.contentFrame.root=self
         self.contentPadx=contentPadx
 
         self.title = tk.Label(self.Titlebar, text=title)
@@ -140,99 +154,190 @@ class ScrollFrame(tk.Frame):
         self.canvas.yview_scroll(int(-1*(event.delta/120)),'units')
 
 class bindingFrame(tk.Frame):
+    conflicts={}
     #class to hold an individual keybind within a control
     labelUnassignedDevice = 'select device'
     labelUnassignedSubdevice = 'select input type'
 
     class parsedEntry(tk.Entry):
         #subclass of entry to display, adjust, and error check binding inputs
-        def __init__(self, parent, rules, initialValue, range=None, **args):
+        def __init__(self, parent, parentBinding, rules, initialValue, range=None, **args):
             tk.Entry.__init__(self, parent, **args)
-            self.bind('<FocusOut>', self.errorCheckEvent)
+            self.variable=tk.StringVar(self)
             self.bind('<FocusIn>', self.selectAll)
             self.rules=rules
-            if (initialValue is not None): self.insert(0,initialValue)
             self.range=range
-
-            self.errorCheck()
+            self.bindingFrame=parentBinding
+            
+            self.config(textvariable=self.variable)
+            self.bind('<FocusOut>', self.onChange)
+            if (initialValue is not None): self.insert(0,initialValue)
 
         def selectAll(self, event):
             self.selection_range(0,'end')
 
-        def errorCheckEvent(self, event):
-            self.errorCheck()
-        def errorCheck(self):
-            value=self.get()
+        def onChange(self, event):
+            if (self.rules=='int'): self.rulesInt(self.get())
+            elif (self.rules=='midi'): self.rulesMidi(self.get())
+            elif (self.rules=='midiString'): self.rulesMidiString(self.get())
+            UISettingsProxy.changeMade(self.bindingFrame)
 
-            if (self.rules=='int'): value = self.rulesInt(value)
-            elif (self.rules=='midi'): value = self.rulesMidi(value)
-            elif (self.rules=='midiString'): value = self.rulesMidiString(value)
-
-            self.delete(0,'end')
-            self.insert(0, value)
-            return self.get()
         def rulesMidi(self, input):
             #convert string into a valid midi channel (int or 'any')
             if (input != 'any'):
                 input = self._rulesInt(input)
-                if input == None: input = 'any'
-            return input
+                if input == None:
+                    input = 'any'
+                    valid=False
+                    self.variable.set(input)
+                    return False
+            return True
         def rulesMidiString(self, input):
             if (input != 'any'):
                 input = self._rulesString(input)
-                if input == None: input = 'any'
-            return input
+                if input == None:
+                    input = 'any'
+                    self.variable.set(input)
+                    return False
+            return True
         def rulesInt(self, input):
             #convert string into an int (or 0, if it's not a valid int)
             input = self._rulesInt(input)
-            if (input == None): return 0
+            if (input == None):
+                if(self.range): self.variable.set(self.range[0])
+                else: self.variable.set(0)
+                return False
 
-            if (self.range):
+            if (self.range and self.range[0] < input < self.range[1]):
                 input = max(self.range[0], min(self.range[1], input))
-
-            return input
+                self.variable.set(input)
+                return False
+            return True
         def _rulesInt(self, input):
             #helper function to parse a string as int or None
             try: return int(input)
-            except: return None 
+            except: return None
         def _rulesString(self, input):
             if (input == ''): return None
             return input
 
     def __init__(self, parent, command, deviceType=None, deviceSubtype=None, contents=None, **options):
         tk.Frame.__init__(self, parent, **options)
-        self.titlebar = tk.Frame(self)
         self.deviceType=tk.StringVar(self)
         self.deviceType.set(bindingFrame.labelUnassignedDevice)
         self.deviceSubtype = tk.StringVar(self)
         self.deviceSubtype.set(bindingFrame.labelUnassignedSubdevice)
         self.deviceTypeLast = None
         self.deviceSubtypeLast = None
+        Icons.load()
         #(button, analog) each is true or false
         self.commandType=(command[1]=='button' or command[1]=='both', command[1]=='analog' or command[1]=='both')
 
         self.contents=None
+
+        self.titlebar = tk.Frame(self)
         if True:
+            self.conflictIcon=tk.Label(self.titlebar)
             self.listenButton = tk.Button(self.titlebar, text='listen for input',
-                                          command=lambda:inputRouting.bindListen(self, ))
-            self.listenButton.pack(side='left')
+                                          command=lambda:UISettingsProxy.inputRoutingBindListen(self))
             self.deviceTypeLabel = tk.OptionMenu(self.titlebar, self.deviceType, bindingFrame.labelUnassignedDevice,
                                                  'controller', 'midi', command=self.changeDeviceType)
-            self.deviceTypeLabel.pack(side='left', padx=(5,3))
             self.deviceSubtypeLabel = tk.OptionMenu(self.titlebar, self.deviceSubtype,
                                                     bindingFrame.labelUnassignedSubdevice, command=self.changeDeviceSubtype)
-            #self.deviceSubtypeLabel.pack(side='left', padx=(10,3))
-            tk.Button(self.titlebar, text='X', command=self.destroy).pack(side='right')
+            
+            self.conflictIcon.pack(side='left')
+            self.listenButton.pack(side='left')
+            self.deviceTypeLabel.pack(side='left', padx=(5,3))
+            tk.Button(self.titlebar, text='X', command=self.destroySelf).pack(side='right')
         self.body=tk.Frame(self)
         self.titlebar.pack(fill='x', padx=2, pady=2)
         self.body.pack(fill='x', padx=2, pady=2)
         self.setDevice(deviceType, deviceSubtype, contents)
 
+    def destroySelf(self):
+        UISettingsProxy.changeMade(self, removed=True)
+        self.destroy()
+    def compareBind(self, binding):
+        if (self.contents and binding.contents and self.deviceType.get()==binding.deviceType.get() and
+            self.deviceSubtype.get()==binding.deviceSubtype.get()):
+            if (self.deviceType.get() == 'controller'):
+                #button and axis number are both stored in contents[0]
+                if (self.contents[0].get() == binding.contents[0].get()):
+                    return True
+            elif (self.deviceType.get()=='midi'):
+                #if either device is 'any' the devices match, and same for the channel
+                #but check the cc or note number first, since if that doesn't match the whole thing won't be a match
+                if ((self.contents[2].get() == binding.contents[2].get()) and
+                    (self.contents[0].get()=='any' or binding.contents[0].get()=='any' or
+                        self.contents[0].get()==binding.contents[0].get()) and
+                    (self.contents[1].get()=='any' or binding.contents[1].get()=='any' or
+                        self.contents[1].get()==binding.contents[1].get())):
+                    return True
+        return False
+
+    def addConflict(self, binding):
+        if (binding != self):
+            if (self not in bindingFrame.conflicts):
+                bindingFrame.conflicts[self]=[]
+            if (binding not in bindingFrame.conflicts[self]):
+                bindingFrame.conflicts[self].append(binding)
+            self.conflictIcon.config(image=Icons.iconWarning)
+            self.master.root.conflictIcon.config(image=Icons.iconWarning)
+            if (self.master.root.categoryFrame):
+                self.master.root.categoryFrame.root.conflictIcon.config(image=Icons.iconWarning)
+    def removeConflict(self, binding):
+        if (binding != self):
+            if (self in bindingFrame.conflicts):
+                if (binding in bindingFrame.conflicts[self]):
+                    bindingFrame.conflicts[self].remove(binding)
+                    if (len(bindingFrame.conflicts[self])==0):
+                        del bindingFrame.conflicts[self]
+                        self.conflictIcon.config(image='')
+                        frameClear=True
+                        for child in self.master.winfo_children():
+                            if (child in bindingFrame.conflicts):
+                                frameClear=False
+                                break
+                        if (frameClear):
+                            self.master.root.conflictIcon.config(image='')
+                            if (self.master.root.categoryFrame):
+                                frameClear=True
+                                for child in self.master.root.categoryFrame.winfo_children():
+                                    if (self.master.root.conflictIcon.cget('image') !=''):
+                                        frameClear=False
+                                        break
+                                if (frameClear):
+                                    self.master.root.categoryFrame.root.conflictIcon.config(image='')
+
+    def checkConflict(self, changedBinding, removed=False):
+        if (changedBinding != self):
+            if (self.compareBind(changedBinding)):
+                if (removed):
+                    self.removeConflict(changedBinding)
+                    changedBinding.removeConflict(self)
+                else:
+                    self.addConflict(changedBinding)
+                    changedBinding.addConflict(self)
+            else:
+                self.removeConflict(changedBinding)
+                changedBinding.removeConflict(self)
+
+        return(len(bindingFrame.conflicts)>0)
+
+    #versions of changeMade with different amounts of inputs
+    #   (that will be discarded, and pass self along to UISettingsProxy.changeMade
+    #instead of making a bunch of the same lambda to discard inputs
+    def changeMade0(self):
+        UISettingsProxy.changeMade(self)
+    def changeMade1(self, value):
+        UISettingsProxy.changeMade(self)
     def changeDeviceType(self, deviceType):
         if (self.deviceTypeLast != deviceType):
+            UISettingsProxy.changeMade(self)
             self.setDevice(deviceType, None)
     def changeDeviceSubtype(self, deviceSubtype):
         if (self.deviceSubtypeLast != deviceSubtype):
+            UISettingsProxy.changeMade(self)
             self.setDevice(self.deviceType.get(), deviceSubtype)
     def setDevice(self, deviceType, deviceSubtype, contents=None):
         if (self.deviceTypeLast != deviceType or self.deviceSubtypeLast != deviceSubtype):
@@ -257,7 +362,6 @@ class bindingFrame(tk.Frame):
             #populate the subtype menu
             if (deviceType == 'midi'):
                 #TODO: make this bit a general function
-                #TODO: allow CC input into button commands, but not note input into analog commands
                 self.deviceSubtypeLabel['menu'].delete(0,'end')
                 if (self.commandType[0]): self.deviceSubtypeLabel['menu'].add_command(
                     label='note', command=lambda: self.changeDeviceSubtype('note'))
@@ -282,15 +386,15 @@ class bindingFrame(tk.Frame):
 
 
                     tk.Label(self.body, text='device: ').pack(side='left', padx=2, pady=2)
-                    self.contents[0]= bindingFrame.parsedEntry(self.body, 'midiString',contents[0], width=40)
+                    self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'midiString',contents[0], width=40)
                     self.contents[0].pack(side='left', padx=2, pady=2)
 
                     tk.Label(self.body, text='channel: ').pack(side='left', padx=2, pady=2)
-                    self.contents[1]= bindingFrame.parsedEntry(self.body, 'midi',contents[1], width=3)
+                    self.contents[1]= bindingFrame.parsedEntry(self.body, self, 'midi',contents[1], width=3)
                     self.contents[1].pack(side='left', padx=2, pady=2)
 
                     tk.Label(self.body, text='index: ').pack(side='left', padx=2, pady=2)
-                    self.contents[2]= bindingFrame.parsedEntry(self.body, 'int',contents[2], width=3)
+                    self.contents[2]= bindingFrame.parsedEntry(self.body, self, 'int',contents[2], width=3)
                     self.contents[2].pack(side='left', padx=2, pady=2)
 
                     if (deviceSubtype == 'control'):
@@ -299,7 +403,7 @@ class bindingFrame(tk.Frame):
                         else: self.contents[3].set(bindables.thresholdDefaultMidiCC)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0, to_=1, digits=3, resolution=0.01,
-                                 orient='horizontal' ).pack(side='left', padx=2, pady=2)
+                                 orient='horizontal', command=self.changeMade1).pack(side='left', padx=2, pady=2)
 
                 elif (deviceType == 'controller'): 
                     if (deviceSubtype == 'axis'):
@@ -307,7 +411,7 @@ class bindingFrame(tk.Frame):
                         if (contents == None): contents = [None, None, None, None]
                         self.contents = [None, None, None, None]
                         tk.Label(self.body, text='axis: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, 'int',contents[0], width=3)
+                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
                         
                         tk.Label(self.body, text='type: ').pack(side='left', padx=2, pady=2)
@@ -320,14 +424,14 @@ class bindingFrame(tk.Frame):
                         if (contents[2]): self.contents[2].set(contents[2])
                         else: self.contents[2].set(1)
                         tk.Checkbutton(self.body, variable=self.contents[2], text='invert', onvalue=-1, offvalue=1
-                                       ).pack(side='left', padx=2, pady=2)
+                                       , command=self.changeMade0).pack(side='left', padx=2, pady=2)
 
                         self.contents[3] = tk.DoubleVar(self.body)
                         if (contents[3] is not None): self.contents[3].set(contents[3])
                         else: self.contents[3].set(bindables.thresholdDefaultController)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0.01, to_=1, digits=3, resolution=0.01,
-                                 orient='horizontal').pack(side='left', padx=2, pady=2)
+                                 orient='horizontal', command=self.changeMade1).pack(side='left', padx=2, pady=2)
 
                     elif (deviceSubtype == 'button'):
                         #buttonNumber
@@ -335,7 +439,7 @@ class bindingFrame(tk.Frame):
                         self.contents=[None]
                         
                         tk.Label(self.body, text='button: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, 'int',contents[0], width=3)
+                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
 
                     elif (deviceSubtype == 'hat'):
@@ -344,11 +448,11 @@ class bindingFrame(tk.Frame):
                         self.contents=[None, None]
 
                         tk.Label(self.body, text='hat number: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, 'int',contents[0], width=3)
+                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
                         
                         tk.Label(self.body, text='hat direction (clockwise, 0 is up): ').pack(side='left', padx=2, pady=2)
-                        self.contents[1]= bindingFrame.parsedEntry(self.body, 'int',contents[1], range=(0,7), width=3)
+                        self.contents[1]= bindingFrame.parsedEntry(self.body, self, 'int',contents[1], range=(0,7), width=3)
                         self.contents[1].pack(side='left', padx=2, pady=2)
                 elif (deviceType == 'keyboard'):
                     None
@@ -359,22 +463,22 @@ class bindingFrame(tk.Frame):
             if(self.deviceType.get() == 'midi'):
                 midiDevice, midiChannel, inputNumber, threshold = self.contents
 
-                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.errorCheck() + ',' + midiChannel.errorCheck()+','+inputNumber.errorCheck()
+                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.get() + ',' + midiChannel.get()+','+inputNumber.get()
                 if (threshold is not None and threshold.get() != bindables.thresholdDefaultMidiCC): outstring += ','+str(threshold.get())
                 return outstring
         
             elif(self.deviceType.get() == 'controller'):
                 if (self.deviceSubtype.get() == 'axis'):
                     axisNum, axisType, axisFlip, threshold = self.contents
-                    outstring= commandAddress + ',controller.axis,'+axisNum.errorCheck() + ',' + axisType.get() + ','+str(axisFlip.get())
+                    outstring= commandAddress + ',controller.axis,'+axisNum.get() + ',' + axisType.get() + ','+str(axisFlip.get())
                     if (threshold.get() != bindables.thresholdDefaultController): outstring += ','+str(threshold.get())
                     return outstring
                 elif (self.deviceSubtype.get() == 'button'):
                     buttonNum=self.contents[0]
-                    return commandAddress+',controller.button,'+buttonNum.errorCheck()
+                    return commandAddress+',controller.button,'+buttonNum.get()
                 elif (self.deviceSubtype.get() == 'hat'):
                     hatNum, hatDirection = self.contents
-                    return commandAddress+',controller.hat,'+hatNum.errorCheck()+','+hatDirection.errorCheck()
+                    return commandAddress+',controller.hat,'+hatNum.get()+','+hatDirection.get()
         return None
         
 class ControlBindPanel(ToggleFrame):
@@ -383,14 +487,19 @@ class ControlBindPanel(ToggleFrame):
         title=bindableName.replace('_', ' ')
         ToggleFrame.__init__(self, parent, title=title, keepTitle=True, buttonShowTitle = 'show',
                              buttonHideTitle='hide', togglePin='left', relief='groove', borderwidth=1)
+        Icons.load()
         self.bindableName = bindableName
         self.command = command
+        self.categoryFrame=None
         #self.config(highlightbackground='black', highlightthickness=1)
-
+        
+        self.conflictIcon=tk.Label(self.Titlebar)
+        self.conflictIcon.pack(side='left', before=self.expandButton)
         frameBody = tk.Frame(self.contentFrame)
         if True:
             frameSidebar=tk.Frame(frameBody)
             self.BindingList = tk.Frame(frameBody, relief='sunken', borderwidth=2)
+            self.BindingList.root=self
             tk.Button(frameSidebar, text='add', command=self.AddBinding).pack(padx=2,pady=3)
             frameSidebar.pack(side='left', fill='y', padx=2, pady=2)
             self.BindingList.pack(side='left', fill='x', expand=True)
@@ -407,19 +516,20 @@ class ControlBindPanel(ToggleFrame):
                     return True
             elif (command==bindables.index[self.bindableName]): return True
             return False
-        
-        if (command[1]=='button' or command[1]=='both'): #digital inputs can only be bound to button commands, or commands that handle their own input
-            for binding in controller.current.commandBinds['midi']['note']:
+
+         #digital inputs can only be bound to button commands, or commands that handle their own input
+        if (command[1]=='button' or command[1]=='both'):
+            for binding in UISettingsProxy.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',
                                     contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber))
             b=0
-            for binding in controller.current.commandBinds['controller']['button']:
+            for binding in UISettingsProxy.commandBinds['controller']['button']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='controller', deviceSubtype='button', contents=[b])
                 b+=1
             h = 0
-            for hat in controller.current.commandBinds['controller']['hat']:
+            for hat in UISettingsProxy.commandBinds['controller']['hat']:
                 direction=0
                 for binding in hat:
                     if (compareCommand()):
@@ -428,20 +538,22 @@ class ControlBindPanel(ToggleFrame):
                 h+=1
 
         #analog inputs can always be bound to button commands, as long as the threshold is properly set
-        for binding in controller.current.commandBinds['midi']['control']:
+        for binding in UISettingsProxy.commandBinds['midi']['control']:
             if (compareCommand()):
                 self.AddBinding(deviceType='midi', deviceSubtype='control',
                                 contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber, binding.threshold))
         a=0
-        for binding in controller.current.commandBinds['controller']['axis']:
+        for binding in UISettingsProxy.commandBinds['controller']['axis']:
             if (compareCommand()):
                 self.AddBinding(deviceType='controller', deviceSubtype='axis',
                                 contents=[a, binding.type,binding.flip, binding.threshold])
             a+=1
 
     def AddBinding(self, deviceType=None, deviceSubtype=None, contents=None):
-        bindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
-                     deviceSubtype=deviceSubtype, contents=contents).pack(fill='x', padx=2, pady=2)
+        newBinding=bindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
+                     deviceSubtype=deviceSubtype, contents=contents)
+        newBinding.pack(fill='x', padx=2, pady=2)
+        UISettingsProxy.changeMade(newBinding)
 
 class ControlBindPresetPanel(ControlBindPanel):
     def __init__(self, parent, bindableName, command, presetName, bindsList, newBinding=False, **options):
@@ -460,6 +572,8 @@ class ControlBindPresetPanel(ControlBindPanel):
 
         def deleteButton():
             ControlBindPresetPanel.bindsList.remove(self)
+            for binding in self.BindingList.winfo_children():
+                UISettingsProxy.changeMade(binding, removed=True)
             self.destroy()
 
         tk.Button(self.Titlebar, text='X', command=deleteButton).pack(side='left')
@@ -477,7 +591,7 @@ class CameraPresetPanel(tk.Frame):
         self.index = index
         self.presetId=None #for global presets, index and presetID are identical and immutable
         if (cameraId == 0): self.presetId=index
-        self.cameraId=cameraId #set to 0 for Cameras instead of Camera (make sure to use "is not None" when checking if this variable is set!)
+        self.cameraId=cameraId #set to 0 for Cameras instead of Camera
         self.name=None
         #self.listPosition=index
 
@@ -641,3 +755,38 @@ class CameraPresetPanel(tk.Frame):
             name=name.replace(' ','_')
             self.name=name
         self.updateContents()
+
+class ConfigSlider(tk.Frame):
+    def __init__(self, parent, command=None, from_=0, to_=1):
+        tk.Frame.__init__(self,parent)
+        self.contentFrame=tk.Frame(self)
+        self.command=command
+        self.from_=from_
+        self.to_=to_
+        if True:
+            self.scale=tk.Scale(self.contentFrame, from_=from_, to_=to_, orient='horizontal')
+            self.scale.bind('<ButtonPress-1>', self.onMouseDown)
+            self.scale.bind('<ButtonRelease-1>', self.onMouseUp)
+
+            tk.Button(self.contentFrame,text='<', command=self.decrement).pack(side='left')
+            self.scale.pack(side='left', fill='x')
+            tk.Button(self.contentFrame,text='>', command=self.increment).pack(side='left')
+
+        self.contentFrame.pack(fill='both')
+    def setVariable(self, variable):
+        self.variable=variable
+        self.scale.config(variable=variable)
+    def onMouseDown(self, event):
+        self.scale.config(variable=None)
+    def onMouseUp(self, event):
+        self.scale.config(variable=self.variable)
+        if (self.command and self.variable):
+            self.command(self.variable.get())
+    def decrement(self):
+        if (self.variable):
+            self.variable.set(max(self.from_, self.variable.get()-1))
+            if (self.command): self.command(self.variable.get())
+    def increment(self):
+        if (self.variable):
+            self.variable.set(min(self.to_, self.variable.get()+1))
+            if (self.command): self.command(self.variable.get())

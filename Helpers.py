@@ -2,8 +2,9 @@ import sys
 import time
 import os
 import tkinter as tk
+from tkinter import messagebox
 
-VersionNumber = '0.54' #previous: 0.53
+VersionNumber = '0.56.4' #previous: 0.56.3
 
 class deltaTime():
     lastTime=0
@@ -14,38 +15,16 @@ class deltaTime():
         deltaTime.lastTime=newTime
         
 class Assets():
-    def getPath(path):
-        basePath=getattr(sys, '_MEIPASS', os.path.abspath('.')) #abspath(__file__) instead?
-        return os.path.join(basePath, path)
-
-class configPanel():
-    #basically-empty class to drop variables in to conveniently contain access to config panel elements for access between classes
-    None
+    def getAsset(asset):
+        if (hasattr(sys, '_MEIPASS')):
+            return os.path.join(sys._MEIPASS, 'Assets', asset)
+        else:
+            return os.path.join('Assets', asset)
 
 class controller():
     #easy link to get the current CameraController instance
+    #so classes can refer back to CameraController without having to deal with importing it
     current=None
-
-class inputRouting():
-    settingsListenForInput = None
-    def bindCommand(deviceType, deviceSubtype,inputType, contents):
-        commandTypeIndex = inputType=='analog' #0 if it's 'button', 1 if it's 'analog'
-        if ((commandTypeIndex==1) or inputRouting.settingsListenForInput.commandType[commandTypeIndex]): #TODO: this is a hacky holdover. Rework to a cleaner version of "button can take analog input, analog can't take digital input"
-            inputRouting.settingsListenForInput.changeDeviceType(None)
-            inputRouting.settingsListenForInput.setDevice(deviceType, deviceSubtype, contents)
-            inputRouting.bindListenCancel()
-    def bindListen(bindingFrame):
-        inputRouting.bindListenCancel()
-        inputRouting.settingsListenForInput = bindingFrame
-        bindingFrame.listenButton.config(relief='sunken')
-
-    def bindListenCancelSafe():
-        inputRouting.expectedType=None
-        inputRouting.settingsListenForInput = None
-    def bindListenCancel(): 
-        if (inputRouting.settingsListenForInput):
-            inputRouting.settingsListenForInput.listenButton.config(relief='raised')
-        inputRouting.bindListenCancelSafe()
 
 class controlDirect():
     def __init__(self, command=None, delay=.1):

@@ -40,6 +40,8 @@ class Shell():
             print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
         except TimeoutError:
             print('\n\nSSH timeout! No device found.')
+        except paramiko.ssh_exception.SSHException:
+            print('Signature verification (ssh-rsa) failed.')
         except:
             #TODO: 
             print("Unhandled Connection Exception:", sys.exc_info()[0])
