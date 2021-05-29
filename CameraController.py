@@ -936,10 +936,12 @@ class CameraController():
         self.inputBuffer=command
 
     def clearFeedback(self, deviceIndex):
-        if (self.getMidiName(deviceIndex)=='Launchpad Mini'):
+        if ('Launchpad Mini' in self.getMidiName(deviceIndex)):
             device=self.outputDevicesMidis[deviceIndex]
-            for i in range(121):
-                device.note_on(i, velocity=0, channel=0)
+            device.write_short(0xb0, 00,00) #this should clear the pad
+            #for i in range(121):
+            #    device.note_on(i, velocity=0, channel=0)
+
     def getMidiName(self, deviceIndex):
         return str(pygame.midi.get_device_info(deviceIndex)[1], 'utf-8')
     def refreshInputDevicesMidi(self):

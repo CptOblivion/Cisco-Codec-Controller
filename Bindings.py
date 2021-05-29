@@ -201,7 +201,6 @@ class bindables():
                 for preset in controller.current.CameraPresets:
                     if (preset and preset.isValid() and preset.name==presetName):
                         camNum=preset.cameraId
-                        print('camera:',camNum)
                         if (bindables.PresetWrite):
                             preset.saveToPreset()
                         else:
@@ -226,7 +225,7 @@ class bindables():
                             device[0].note_on(binding.inputNumber, velocity=63,
                                            channel=device[1])
                         else:
-                            device[0].write_short(0xb0+device[1],binding.inputNumber, 127)
+                            device[0].write_short(0xb0+device[1],binding.inputNumber, 63)
 
     
     bindablePresets=[]
