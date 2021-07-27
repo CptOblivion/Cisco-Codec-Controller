@@ -465,7 +465,7 @@ class CameraController():
         CommandEntry.pack(side=tk.RIGHT, padx=self.PadInt, pady=self.PadInt, fill='x', expand=True)
         CommandButton.pack(side=tk.RIGHT, padx=self.PadInt, pady=self.PadInt)
 
-    def SetBrightnessLevel(self, value):
+    def SetBrightnessLevel(self, value, cam=None):
         self.xConfiguration('Brightness Level: ' + str(value))
     def SetWhitebalanceLevel(self, value):
         self.xConfiguration('Whitebalance Level: ' + str(value))
