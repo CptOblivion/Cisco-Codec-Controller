@@ -168,6 +168,26 @@ class bindables():
     def selectCamera7(binding, value):
         bindables._selectCamera_(7)
 
+    def _setBrightness(camNum, val):
+        #print(val*30)
+        val = int(val*30)+1
+        if (controller.current.cameras[camNum].brightnessValue.get() != val):
+            controller.current.SetBrightnessLevel(val, camNum)
+    def brightnessCamera1(binding, value):
+        bindables._setBrightness(1, value)
+    def brightnessCamera2(binding, value):
+        bindables._setBrightness(2, value)
+    def brightnessCamera3(binding, value):
+        bindables._setBrightness(3, value)
+    def brightnessCamera4(binding, value):
+        bindables._setBrightness(4, value)
+    def brightnessCamera5(binding, value):
+        bindables._setBrightness(5, value)
+    def brightnessCamera6(binding, value):
+        bindables._setBrightness(6, value)
+    def brightnessCamera7(binding, value):
+        bindables._setBrightness(7, value)
+
     def setPresetWrite(binding, value):
         bindables.PresetWrite=bool(value)
         controller.current.TogglePresetEdit.SetState(bindables.PresetWrite)
@@ -265,6 +285,14 @@ class bindables():
                 'select_camera_7': (selectCamera7, 'button'),
             'overwrite_preset':(setPresetWrite, 'button'),
             bindingPresets:(activatePreset,'button'),
+            bindingCategory+'brightness':'brightnessCamera7',
+                'brightnessCamera1':(brightnessCamera1, 'analog'),
+                'brightnessCamera2':(brightnessCamera2, 'analog'),
+                'brightnessCamera3':(brightnessCamera3, 'analog'),
+                'brightnessCamera4':(brightnessCamera4, 'analog'),
+                'brightnessCamera5':(brightnessCamera5, 'analog'),
+                'brightnessCamera6':(brightnessCamera6, 'analog'),
+                'brightnessCamera7':(brightnessCamera7, 'analog'),
             'pan_tilt_speed':(analogPTSpeed, 'analog'),
             'zoom_speed':(analogSetZSpeed, 'analog'),
             bindingCategory+'debug':'debugOutputValue',
