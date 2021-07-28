@@ -466,18 +466,18 @@ class CameraController():
         CommandButton.pack(side=tk.RIGHT, padx=self.PadInt, pady=self.PadInt)
 
     def SetBrightnessLevel(self, value, cam=None):
-        self.xConfiguration('Brightness Level: ' + str(value))
-    def SetWhitebalanceLevel(self, value):
-        self.xConfiguration('Whitebalance Level: ' + str(value))
-    def SetGammaLevel(self, value):
-        self.xConfiguration('Gamma Level: ' + str(value))
+        self.xConfiguration('Brightness Level: ' + str(value), cam)
+    def SetWhitebalanceLevel(self, value, cam=None):
+        self.xConfiguration('Whitebalance Level: ' + str(value), cam)
+    def SetGammaLevel(self, value, cam=None):
+        self.xConfiguration('Gamma Level: ' + str(value), cam)
     def SetFocusAuto(self):
         if (Camera.selected.focusManual.get()): self.xConfiguration('Focus Mode: Auto')
         else: self.xConfiguration('Focus Mode: Manual')
     def SetBrightnessAuto(self):
         if (Camera.selected.brightnessManual.get()): self.xConfiguration('Brightness Mode: Auto')
         else: self.xConfiguration('Brightness Mode: Manual')
-    def SetWhitebalanceAuto(self):
+    def SetWhitebalanceAuto(sel):
         if (Camera.selected.whitebalanceManual.get()): self.xConfiguration('Whitebalance Mode: Auto')
         else: self.xConfiguration('Whitebalance Mode: Manual')
     def SetGammaAuto(self):
