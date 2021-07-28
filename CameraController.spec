@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['CameraController.py'],
-             pathex=['C:\\Users\\capta\\Source\\Repos\\Cisco-Codec-Controller'],
+             pathex=['C:\\Users\\capta\\source\\repos\\Cisco-Codec-Controller'],
              binaries=[],
              datas=[('Assets', 'Assets')],
              hiddenimports=[],
