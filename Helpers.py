@@ -4,7 +4,7 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 
-VersionNumber = '0.58.0' #previous: 0.56.3
+VersionNumber = '0.59.0' #previous: 0.56.3
 
 class deltaTime():
     lastTime=0

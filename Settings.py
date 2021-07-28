@@ -195,6 +195,13 @@ class Settings():
                         bindingString += output+'\n'
         return bindingString
 
+    def fixBinding(bindingString):
+        if bindingString in bindables.iniRename:
+            newBindingString = bindables.iniRename[bindingString]
+            debug.print('updating old binding "'+bindingString+'" to "'+newBindingString+'"')
+            return newBindingString
+        return bindingString
+
     def parseBindings(bindingString):
         Settings.commandBinds = deepcopy(Settings.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
         lines=bindingString.splitlines()
@@ -205,7 +212,7 @@ class Settings():
 
                 segments=line.split(',')
                 debug.print(line)
-                commandIndex = segments[0]
+                commandIndex = Settings.fixBinding(segments[0])
 
                 if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
                     presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
