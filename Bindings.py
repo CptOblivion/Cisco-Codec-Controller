@@ -171,6 +171,26 @@ class bindables():
     def selectCamera7(binding, value):
         bindables._selectCamera_(7)
 
+    def _setBrightness(camNum, val):
+        #print(val*30)
+        val = int(val*30)+1
+        if (controller.current.cameras[camNum].brightnessValue.get() != val):
+            controller.current.SetBrightnessLevel(val, camNum)
+    def brightnessCamera1(binding, value):
+        bindables._setBrightness(1, value)
+    def brightnessCamera2(binding, value):
+        bindables._setBrightness(2, value)
+    def brightnessCamera3(binding, value):
+        bindables._setBrightness(3, value)
+    def brightnessCamera4(binding, value):
+        bindables._setBrightness(4, value)
+    def brightnessCamera5(binding, value):
+        bindables._setBrightness(5, value)
+    def brightnessCamera6(binding, value):
+        bindables._setBrightness(6, value)
+    def brightnessCamera7(binding, value):
+        bindables._setBrightness(7, value)
+
     def setPresetWrite(binding, value):
         bindables.PresetWrite=bool(value)
         controller.current.TogglePresetEdit.SetState(bindables.PresetWrite)
@@ -273,9 +293,25 @@ class bindables():
                 'select_camera_7': (selectCamera7, 'button'),
             'overwrite_preset':(setPresetWrite, 'button'),
             bindingPresets:(activatePreset,'button'),
+            bindingCategory+'brightness':'brightnessCamera7',
+                'brightness_Camera_1':(brightnessCamera1, 'analog'),
+                'brightness_Camera_2':(brightnessCamera2, 'analog'),
+                'brightness_Camera_3':(brightnessCamera3, 'analog'),
+                'brightness_Camera_4':(brightnessCamera4, 'analog'),
+                'brightness_Camera_5':(brightnessCamera5, 'analog'),
+                'brightness_Camera_6':(brightnessCamera6, 'analog'),
+                'brightness_Camera_7':(brightnessCamera7, 'analog'),
             'pan_tilt_speed':(analogPTSpeed, 'analog'),
             'zoom_speed':(analogSetZSpeed, 'analog'),
             bindingCategory+'debug':'debugOutputValue',
                 'debugOutputValueButton':(bothDebugOutputValue, 'button'),
                 'debugOutputValue':(bothDebugOutputValue, 'both'),
             }
+    iniRename = {
+        'brightnessCamera1':'brightness_Camera_1',
+        'brightnessCamera2':'brightness_Camera_2',
+        'brightnessCamera3':'brightness_Camera_3',
+        'brightnessCamera4':'brightness_Camera_4',
+        'brightnessCamera5':'brightness_Camera_5',
+        'brightnessCamera6':'brightness_Camera_6',
+        'brightnessCamera7':'brightness_Camera_7'}
