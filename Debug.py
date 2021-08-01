@@ -8,10 +8,10 @@ class debug():
     forceCameraConnection = False
     
     #turning this to true will add a bunch of extra debug prints to the console
-    verbosePrints = False
+    verbosePrints = False #TODO: safe to delete?
 
     def print(message):
-        if (debug.printVerbose.get()):
+        if (hasattr(debug, 'printVerbose') and debug.printVerbose.get()):
             print(message)
     def printCodec(message):
         if (not debug.muteCodecResponse.get()):

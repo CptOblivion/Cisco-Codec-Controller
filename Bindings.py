@@ -53,7 +53,10 @@ class bindables():
 
     PresetWrite=False
 
-    lastPresetBinding=None
+    #TODO: this should be a list corresponding to cameras
+    lastPresetBinding=[None, None, None, None, None, None, None, None]
+
+    midiIOMapping={}
     
     def _CameraRamp_(value, x, y):
         if (value): controller.current.StartMove(controller.current.PanSpeed.get()*x,controller.current.TiltSpeed.get()*y)
@@ -177,13 +180,17 @@ class bindables():
             device=binding.getMessageDetails()
             if (device):
                 deviceIndex=controller.current.inputDevicesMidiNames.index(device[0])
-                return (controller.current.outputDevicesMidis[deviceIndex], device[1])
+                outNum=bindables.midiIOMapping[deviceIndex]
+                outDevice=controller.current.outputDevicesMidis[outNum]
+                return (outDevice, device[1])
         return (None,None)
     def activatePreset(binding, buttonValue, presetName):
         if (buttonValue):
             triggered = False
+            camNum=-1
             for preset in controller.current.CamerasPresets:
                 if (preset and preset.isValid() and preset.name==presetName):
+                    camNum=0
                     if (bindables.PresetWrite):
                         preset.saveToPreset()
                     else:
@@ -193,6 +200,7 @@ class bindables():
             if (not triggered):
                 for preset in controller.current.CameraPresets:
                     if (preset and preset.isValid() and preset.name==presetName):
+                        camNum=preset.cameraId
                         if (bindables.PresetWrite):
                             preset.saveToPreset()
                         else:
@@ -200,24 +208,24 @@ class bindables():
                         triggered=True
                         break
             if (triggered):
-                if (bindables.lastPresetBinding):
-                    device=bindables._getMidiOutput(bindables.lastPresetBinding)
+                if (bindables.lastPresetBinding[camNum]):
+                    device=bindables._getMidiOutput(bindables.lastPresetBinding[camNum])
                     if (device[0]):
                         if (binding.subdevice=='note'):
-                            device.note_off(bindables.lastPresetBinding.inputNumber,
-                                            channel=device[1])
+                            device[0].note_on(bindables.lastPresetBinding[camNum].inputNumber,
+                                            channel=device[1], velocity=0)
                         else:
-                            device.write_short(0xb000+device[1],bindables.lastPresetBinding.inputNumber, 0)
-
-                bindables.lastPresetBinding=binding
+                            device[0].write_short(0xb0+device[1],bindables.lastPresetBinding[camNum].inputNumber, 0)
+                
+                bindables.lastPresetBinding[camNum]=binding
                 if (isinstance(binding, bindingMidi)):
                     device=bindables._getMidiOutput(binding)
                     if (device[0]):
                         if (binding.subdevice=='note'):
-                            device.note_on(binding.inputNumber, velocity=63,
+                            device[0].note_on(binding.inputNumber, velocity=63,
                                            channel=device[1])
                         else:
-                            device.write_short(0xb0+device[1],binding.inputNumber, 127)
+                            device[0].write_short(0xb0+device[1],binding.inputNumber, 63)
 
     
     bindablePresets=[]
