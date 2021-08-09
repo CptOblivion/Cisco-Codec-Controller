@@ -198,7 +198,7 @@ class bindables():
     def _getMidiOutput(binding):
         if (isinstance(binding, bindingMidi)):
             device=binding.getMessageDetails()
-            if (device):
+            if (device and device in bindables.midiIOMapping):
                 deviceIndex=controller.current.inputDevicesMidiNames.index(device[0])
                 outNum=bindables.midiIOMapping[deviceIndex]
                 outDevice=controller.current.outputDevicesMidis[outNum]
