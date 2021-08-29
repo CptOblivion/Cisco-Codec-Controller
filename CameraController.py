@@ -22,6 +22,7 @@ class CameraController():
                 debug.forceCameraConnection=True
                 print('forcing debug cameras on')
             elif (arg=='DummySSH'):
+                print('IN INTERFACE DEBUG MODE, USING DUMMY SSH! No actual device connected!')
                 DummySSH.UseDummy=True
 
         self.init = False

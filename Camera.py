@@ -1,4 +1,6 @@
 from Helpers import *
+from Settings import *
+#from Bindings import *
 
 class Camera():
     selected=None
@@ -24,6 +26,7 @@ class Camera():
         self.brightnessManual=tk.IntVar()
         self.gammaManual = tk.IntVar()
         self.whitebalanceManual = tk.IntVar()
+        self.triggerBinding = None
 
     def select(self):
         if (self.connected): Camera.selectCamera(self)
@@ -31,10 +34,13 @@ class Camera():
     def onSelect(self):
         self.selected=True
         self.selectButton.config(image=Camera.imageCamSelected, state='disabled')
+        if (self.triggerBinding): self.triggerBinding.triggerFeedback(True)
 
     def onDeselect(self):
         self.selected=False
-        if (self.connected): self.selectButton.config(image=Camera.imageCamAvailable, state='normal')
+        if (self.connected):
+            self.selectButton.config(image=Camera.imageCamAvailable, state='normal')
+            if (self.triggerBinding): self.triggerBinding.triggerFeedback(False)
 
     def onDisable(self):
         self.connected=False
@@ -45,6 +51,14 @@ class Camera():
         self.connected=True
         self.onDeselect()
         controller.current.filterPresetsCurrent()
+    def updateTriggerBinding(self):
+        #always run this function on camera creation and, after cameras are created, on binding change
+        for bindingType in Settings.commandBinds['midi']:
+            for binding in Settings.commandBinds['midi'][bindingType]: #checking both note and command within midi bindings
+                if (binding):
+                    if (binding.command[0].__name__ == 'selectCamera' + str(self.number)):
+                        self.triggerBinding = binding
+                        return
 
     def selectCamera(newCamera):
         if ((not Camera.selected) or Camera.selected != newCamera):

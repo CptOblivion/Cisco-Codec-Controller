@@ -254,6 +254,8 @@ class Settings():
                         Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(
                             bindingControllerButton(command))
         UISettingsProxy.commandBinds=Settings.commandBinds
+        for camera in controller.current.cameras:
+            if (camera): camera.updateTriggerBinding()
         
 
 class inputRouting():
