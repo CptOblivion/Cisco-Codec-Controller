@@ -18,9 +18,9 @@ class _bindingBase_():
 class bindingMidi(_bindingBase_):
     def __init__(self, midiDevice, midiChannel,inputNumber, command, subdevice, threshold=None):
         _bindingBase_.__init__(self, command)
-        #TODO: mark if note or CC
         #TODO: if channel is None, when this binding is activated store the channel that was used
         #TODO: same with device
+        #TODO: or actually, reconsider if midiChannelLast is necessary
         self.midiDevice=self.midiDeviceLast=midiDevice
         self.midiChannel = self.midiChannelLast=midiChannel
         self.subdevice=subdevice
@@ -45,20 +45,6 @@ class bindingMidi(_bindingBase_):
                 outDevice.write_short(0xb0+self.midiChannel,self.inputNumber, vel)
             return self #success
         return None #no dice
-
-    #def getMessageDetails(self):
-    #    device=self.midiDevice
-    #    channel=self.midiChannel
-    #    if (self.midiDevice is None): device=self.midiDeviceLast
-    #    if (self.midiChannel is None): channel=self.midiChannelLast
-    #    return(device,channel)
-    #def getOutput(self):
-    #    device=self.getMessageDetails()
-    #    if (device and device in bindables.midiIOMapping):
-    #        deviceIndex=controller.current.inputDevicesMidiNames.index(device[0])
-    #        outNum=bindables.midiIOMapping[deviceIndex]
-    #        outDevice=controller.current.outputDevicesMidis[outNum]
-    #        return (outDevice, device[1])
 
 class bindingControllerButton(_bindingBase_):
     def __init__(self, command):
@@ -249,29 +235,11 @@ class bindables():
                         triggered=True
                         break
             if (triggered):
-                #TODO: store the binding on the preset object, so it can be lit (or unlit) regardless of how the preset was triggered
+                #TODO: store the binding on the preset object, so it can be lit (or unlit) if triggered through the UI instead of through a binding
                 if (bindables.lastPresetBinding[camNum]):
                     bindables.lastPresetBinding[camNum].triggerFeedback(False)
                 bindables.lastPresetBinding[camNum]=binding
                 binding.triggerFeedback(True)
-                #    #device=bindables._getMidiOutput(bindables.lastPresetBinding[camNum])
-                #    device = bindables.lastPresetBinding[camNum].getOutput()
-                #    if (device[0]):
-                #        if (binding.subdevice=='note'):
-                #            device[0].note_on(bindables.lastPresetBinding[camNum].inputNumber,
-                #                            channel=device[1], velocity=0)
-                #        else:
-                #            device[0].write_short(0xb0+device[1],bindables.lastPresetBinding[camNum].inputNumber, 0)
-                #bindables.lastPresetBinding[camNum]=binding
-                #if (isinstance(binding, bindingMidi)):
-                #    #device=bindables._getMidiOutput(binding)
-                #    device=binding.getOutput()
-                #    if (device[0]):
-                #        if (binding.subdevice=='note'):
-                #            device[0].note_on(binding.inputNumber, velocity=63,
-                #                           channel=device[1])
-                #        else:
-                #            device[0].write_short(0xb0+device[1],binding.inputNumber, 63)
 
     
     bindablePresets=[]
