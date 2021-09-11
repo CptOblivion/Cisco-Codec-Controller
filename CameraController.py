@@ -959,7 +959,9 @@ class CameraController():
                 self.inputDevicesMidis.append(pygame.midi.Input(i))
             else:
                 self.inputDevicesMidis.append(None)
-            if (info[3]==1):
+            #throws an error if Microsoft MIDI Mapper is loaded 
+            #TODO: we shouldn't be loading outputs unless we're using them anyways
+            if (info[3]==1 and str(info[1], 'utf-8') != 'Microsoft MIDI Mapper'):
                 self.outputDevicesMidis.append(pygame.midi.Output(i))
                 self.clearFeedback(i)
                 if (name in self.inputDevicesMidiNames):

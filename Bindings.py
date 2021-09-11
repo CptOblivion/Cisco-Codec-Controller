@@ -31,9 +31,9 @@ class bindingMidi(_bindingBase_):
         
         self.inputNumber = inputNumber
     def triggerFeedback(self, state): #state is bool
-        if (self.midiDevice and self.midiChannel and self.inputNumber
-           and self.midiDevice in bindables.midiIOMapping):
-            deviceIndex=controller.current.inputDevicesMidiNames.index(device[0])
+        deviceIndex=controller.current.inputDevicesMidiNames.index(self.midiDevice)
+        if (self.midiDevice is not None and self.midiChannel is not None and self.inputNumber is not None
+           and deviceIndex in bindables.midiIOMapping):
             outNum=bindables.midiIOMapping[deviceIndex]
             outDevice=controller.current.outputDevicesMidis[outNum]
             if (state): vel = 63
