@@ -1,6 +1,6 @@
 import paramiko
 import re
-from Debug import *
+import debug
 from Camera import *
 from Settings import *
 from UI import *

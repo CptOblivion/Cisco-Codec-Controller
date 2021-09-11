@@ -1,4 +1,5 @@
-from Helpers import *
+
+from helpers import *
 from Bindings import *
 from Camera import *
 

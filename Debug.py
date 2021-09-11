@@ -1,35 +1,36 @@
-from Helpers import *
+
+from helpers import *
 import traceback
 import datetime
 
-class debug():
-    logfileName = 'Error_Log_'+VersionNumber+'.txt'
-    #turning this to True will force the UI to always show Camera 2 and 3 as connected
-    forceCameraConnection = False
-    
-    #turning this to true will add a bunch of extra debug prints to the console
-    verbosePrints = False #TODO: safe to delete?
+#turning this to True will force the UI to always show Camera 2 and 3 as connected
+forceCameraConnection = False
+#turning this to true will add a bunch of extra debug prints to the console
+verbosePrints = False #TODO: safe to delete?
+logfileName = 'Error_Log_'+VersionNumber+'.txt'
 
-    def print(message):
-        if (hasattr(debug, 'printVerbose') and debug.printVerbose.get()):
-            print(message)
-    def printCodec(message):
-        if (not debug.muteCodecResponse.get()):
-            print(message)
-    def writeErrorLog():
-        #message=sys.exc_info()
-        #TODO: properly handle traceback
-        print('crash error:')
 
-        with open(debug.logfileName, 'a') as logfile:
-            #traceback.print_exception(message[0], message[1], message[2], file=logfile)
-            logfile.write('\n\n'+debug.getDateTime()+'\n')
-            traceback.print_exc()
-            traceback.print_exc(file=logfile)
-            logfile.close()
-    def getDateTime():
-        timestamp=datetime.datetime.now()
-        return (timestamp.strftime('%y/%m/%d %H:%M:%S'))
+def print(message):
+    if ('printVerbose' in globals() and printVerbose.get()):
+        print(message)
+def printCodec(message):
+    if (not muteCodecResponse.get()):
+        print(message)
+def writeErrorLog():
+    #message=sys.exc_info()
+    #TODO: properly handle traceback
+    print('crash error:')
+
+    with open(debug.logfileName, 'a') as logfile:
+        #traceback.print_exception(message[0], message[1], message[2], file=logfile)
+        logfile.write('\n\n'+debug.getDateTime()+'\n')
+        traceback.print_exc()
+        traceback.print_exc(file=logfile)
+        logfile.close()
+def getDateTime():
+    timestamp=datetime.datetime.now()
+    return (timestamp.strftime('%y/%m/%d %H:%M:%S'))
+
 class DummySSH():
     UseDummy=False
     dummyPresetData=('* PresetListResult Preset 1 CameraId: 1\n'

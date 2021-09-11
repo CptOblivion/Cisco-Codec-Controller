@@ -3,11 +3,11 @@ import pygame.midi
 import pygame.joystick
 import math
 
+from helpers import *
 from Camera import *
-from Helpers import *
 from UI import *
 from Bindings import *
-from Debug import *
+import debug
 from Settings import *
 from Shell import *
 
@@ -23,7 +23,7 @@ class CameraController():
                 print('forcing debug cameras on')
             elif (arg=='DummySSH'):
                 print('IN INTERFACE DEBUG MODE, USING DUMMY SSH! No actual device connected!')
-                DummySSH.UseDummy=True
+                debug.DummySSH.UseDummy=True
 
         self.init = False
 
@@ -849,8 +849,8 @@ class CameraController():
             Settings.config['Startup']['PASSWORD'] = PasswordField.get()
 
             Settings.SaveConfig()
-            if (DummySSH.UseDummy):
-                self.shell=DummySSH()
+            if (debug.DummySSH.UseDummy):
+                self.shell=debug.DummySSH()
                 connected=True
             else:
                 print('connecting to ' + Settings.config['Startup']['USERNAME'] + '@' + Settings.config['Startup']['IPADDRESS'])

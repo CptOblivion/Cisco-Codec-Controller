@@ -1,8 +1,9 @@
-from Helpers import *
+
+from helpers import *
 from configparser import ConfigParser
 from copy import deepcopy
 from Bindings import *
-from Debug import *
+import debug
 from UI import *
 
 class Settings():

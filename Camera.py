@@ -1,4 +1,4 @@
-from Helpers import *
+from helpers import *
 from Settings import *
 #from Bindings import *
 
