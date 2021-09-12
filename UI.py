@@ -265,11 +265,9 @@ class BindingFrame(tk.Frame):
             elif (self.deviceType.get()=='midi'):
                 #if either device is 'any' the devices match, and same for the channel
                 #but check the cc or note number first, since if that doesn't match the whole thing won't be a match
-                if ((self.contents[2].get() == binding.contents[2].get()) and
+                if ((self.contents[1].get() == binding.contents[1].get()) and
                     (self.contents[0].get()=='any' or binding.contents[0].get()=='any' or
-                        self.contents[0].get()==binding.contents[0].get()) and
-                    (self.contents[1].get()=='any' or binding.contents[1].get()=='any' or
-                        self.contents[1].get()==binding.contents[1].get())):
+                        self.contents[0].get()==binding.contents[0].get())):
                     return True
         return False
 
@@ -379,28 +377,23 @@ class BindingFrame(tk.Frame):
                     #midi contents: midi device (int or None), midi channel (int or None), control number (int), threshold
                     #TODO: figure out if we can get tooltips going (or just add a descriptor text like 'leave blank for any'
 
-                    if (contents==None): contents=(None,None,None)
-                    self.contents=[None, None, None, None]
-
-
-                    tk.Label(self.body, text='device: ').pack(side='left', padx=2, pady=2)
-                    self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'midiString',contents[0], width=40)
-                    self.contents[0].pack(side='left', padx=2, pady=2)
+                    if (contents==None): contents=(None,None)
+                    self.contents=[None, None, None]
 
                     tk.Label(self.body, text='channel: ').pack(side='left', padx=2, pady=2)
-                    self.contents[1]= BindingFrame.ParsedEntry(self.body, self, 'midi',contents[1], width=3)
-                    self.contents[1].pack(side='left', padx=2, pady=2)
+                    self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'midi',contents[0], width=3)
+                    self.contents[0].pack(side='left', padx=2, pady=2)
 
                     tk.Label(self.body, text='index: ').pack(side='left', padx=2, pady=2)
-                    self.contents[2]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[2], width=3)
-                    self.contents[2].pack(side='left', padx=2, pady=2)
+                    self.contents[1]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[1], width=3)
+                    self.contents[1].pack(side='left', padx=2, pady=2)
 
                     if (deviceSubtype == 'control'):
-                        self.contents[3] = tk.DoubleVar(self.body)
-                        if (len(contents)==4 and contents[3]): self.contents[3].set(contents[3])
-                        else: self.contents[3].set(bindings.Bindables.thresholdDefaultMidiCC)
+                        self.contents[2] = tk.DoubleVar(self.body)
+                        if (len(contents)==3 and contents[2]): self.contents[2].set(contents[2])
+                        else: self.contents[2].set(bindings.Bindables.thresholdDefaultMidiCC)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
-                        tk.Scale(self.body, variable=self.contents[3], from_=0, to_=1, digits=3, resolution=0.01,
+                        tk.Scale(self.body, variable=self.contents[2], from_=0, to_=1, digits=3, resolution=0.01,
                                  orient='horizontal', command=self.changeMade1).pack(side='left', padx=2, pady=2)
 
                 elif (deviceType == 'controller'): 
@@ -449,8 +442,10 @@ class BindingFrame(tk.Frame):
                         self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
                         
-                        tk.Label(self.body, text='hat direction (clockwise, 0 is up): ').pack(side='left', padx=2, pady=2)
-                        self.contents[1]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[1], range=(0,7), width=3)
+                        tk.Label(self.body, text='hat direction (clockwise, 0 is up): ').pack(
+                            side='left', padx=2, pady=2)
+                        self.contents[1]= BindingFrame.ParsedEntry(
+                            self.body, self, 'int',contents[1], range=(0,7), width=3)
                         self.contents[1].pack(side='left', padx=2, pady=2)
                 elif (deviceType == 'keyboard'):
                     None
@@ -459,17 +454,21 @@ class BindingFrame(tk.Frame):
     def makeOutput(self, commandAddress):
         if (self.contents and self.deviceSubtype.get() != BindingFrame.labelUnassignedSubdevice):
             if(self.deviceType.get() == 'midi'):
-                midiDevice, midiChannel, inputNumber, threshold = self.contents
+                midiChannel, inputNumber, threshold = self.contents
 
-                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.get() + ',' + midiChannel.get()+','+inputNumber.get()
-                if (threshold is not None and threshold.get() != bindings.Bindables.thresholdDefaultMidiCC): outstring += ','+str(threshold.get())
+                outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() + \
+                    ',' + midiChannel.get() + ',' + inputNumber.get()
+                if (threshold is not None and threshold.get() != bindings.Bindables.thresholdDefaultMidiCC):
+                    outstring += ','+str(threshold.get())
                 return outstring
         
             elif(self.deviceType.get() == 'controller'):
                 if (self.deviceSubtype.get() == 'axis'):
                     axisNum, axisType, axisFlip, threshold = self.contents
-                    outstring= commandAddress + ',controller.axis,'+axisNum.get() + ',' + axisType.get() + ','+str(axisFlip.get())
-                    if (threshold.get() != bindings.Bindables.thresholdDefaultController): outstring += ','+str(threshold.get())
+                    outstring= commandAddress + ',controller.axis,'+axisNum.get() + ',' + \
+                        axisType.get() + ',' + str(axisFlip.get())
+                    if (threshold.get() != bindings.Bindables.thresholdDefaultController):
+                        outstring += ','+str(threshold.get())
                     return outstring
                 elif (self.deviceSubtype.get() == 'button'):
                     buttonNum=self.contents[0]
@@ -520,7 +519,7 @@ class ControlBindPanel(ToggleFrame):
             for binding in s.Settings.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',
-                                    contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber))
+                                    contents=(binding.midiChannel,binding.inputNumber))
             b=0
             for binding in s.Settings.commandBinds['controller']['button']:
                 if (compareCommand()):
@@ -539,7 +538,7 @@ class ControlBindPanel(ToggleFrame):
         for binding in s.Settings.commandBinds['midi']['control']:
             if (compareCommand()):
                 self.AddBinding(deviceType='midi', deviceSubtype='control',
-                                contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber, binding.threshold))
+                                contents=(binding.midiChannel,binding.inputNumber, binding.threshold))
         a=0
         for binding in s.Settings.commandBinds['controller']['axis']:
             if (compareCommand()):
@@ -582,10 +581,12 @@ class ControlBindPresetPanel(ControlBindPanel):
             self.AddBinding()
 
 class CameraPresetPanel(tk.Frame):
+    lastTriggerBinding=[None,None,None,None,None,None,None,None]
     controller=None
     def __init__(self, parent, index, cameraId=None, *args, **options):
         tk.Frame.__init__(self, parent, relief='ridge', borderwidth=2, *args, **options)
         
+        self.triggerBinding = None
         self.index = index
         self.presetId=None #for global presets, index and presetID are identical and immutable
         if (cameraId == 0): self.presetId=index
@@ -631,6 +632,17 @@ class CameraPresetPanel(tk.Frame):
         self.updateContents()
         self.SetEditState(main.current.TogglePresetEdit.state)
         self.filter()
+    def updateTriggerBinding(self):
+        if (self.triggerBinding): self.triggerBinding.triggerFeedback(False)
+        if (self.name):
+            for bindingType in s.Settings.commandBinds['midi']:
+                for binding in s.Settings.commandBinds['midi'][bindingType]:
+                    if (binding.bindablePreset == self.name):
+                        #todo: maybe we should have a list of triggerBindings in case multiple ones are bound?
+                        print(self.name)
+                        self.triggerBinding=binding
+                        return
+        self.triggerBinding=None
 
     def updateContents(self):
         self.presetNameEntry.delete(0,'end')
@@ -640,6 +652,7 @@ class CameraPresetPanel(tk.Frame):
         if (self.presetId):
             self.presetIdLabel.config(text=self.presetId)
         self.filter()
+        self.updateTriggerBinding()
 
     def saveToPreset(self):
         if (self.cameraId):
@@ -700,6 +713,13 @@ class CameraPresetPanel(tk.Frame):
                                           ' ListPosition: '+ str(self.index) +'\n')
 
     def activatePreset(self):
+        if (CameraPresetPanel.lastTriggerBinding[self.cameraId]):
+            CameraPresetPanel.lastTriggerBinding[self.cameraId].triggerBinding.triggerFeedback(False)
+        if (self.triggerBinding):
+            self.triggerBinding.triggerFeedback(True)
+            CameraPresetPanel.lastTriggerBinding[self.cameraId] = self
+        else: CameraPresetPanel.lastTriggerBinding[self.cameraId] = None
+        #TODO: track the last trigger in each column, call lastTrigger.triggerBinding.triggerFeedback(False)
         if (self.cameraId):
             main.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
         else:

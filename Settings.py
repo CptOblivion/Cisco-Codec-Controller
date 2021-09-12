@@ -8,10 +8,15 @@ import main
 import ui
 
 class Settings():
+    
+    #TODO: if a settings file with our current version number in the name exists, use that
+    #otherwise use just 'settings.ini', but if the version number in the settings file is old, save a
+    #   backup of it with the version number in the filename
     iniFilename='CameraController_'+versionNumber+'.ini' 
     CustomCommandName="Add custom commands below this line (just make sure they're tabbed in a level)"
     Defaults = {
         'Startup':{
+            'VERSIONNUMBER':versionNumber,
             'IPADDRESS': '192.168.1.27',
             'USERNAME':'admin',
             'PASSWORD':'',
@@ -24,6 +29,7 @@ class Settings():
                         'trigger_autofocus,controller.button,8\n'
                         'focus_near,controller.button,4\n'
                         'focus_far,controller.button,5\n'),
+            'LastMidiDevice':'None'
                 },
 
         'User Commands':{
@@ -56,6 +62,8 @@ class Settings():
         Settings.config=ConfigParser(delimiters=(':'))
         print(Settings.iniFilename)
         Settings.config.read(Settings.iniFilename)
+
+
 
         for rootLevel in Settings.Defaults:
             if (rootLevel not in Settings.config):
@@ -228,16 +236,15 @@ class Settings():
 
                 bindingDevice, bindingSubdevice = segments[1].split('.')
                 if (bindingDevice == 'midi'):
-                    midiDevice, midiChannel, inputNumber=segments[2:5]
+                    midiChannel, inputNumber=segments[2:4]
                     if (len(segments) == 6): threshold=float(segments[5])
                     else: threshold=None
-                    if (midiDevice=='any'): midiDevice = None
                     if (midiChannel=='any'): midiChannel = None
                     else: midiChannel = int(midiChannel)
                     if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
                     else: inputNumber = int(inputNumber)
                     Settings.commandBinds[bindingDevice][bindingSubdevice].append(
-                        addBinding(b.BindingMidi(midiDevice,midiChannel, inputNumber, command, bindingSubdevice, threshold=threshold)))
+                        addBinding(b.BindingMidi(midiChannel, inputNumber, command, bindingSubdevice, threshold=threshold)))
                 elif (bindingDevice=='controller'):
                     if (bindingSubdevice == 'axis'):
                         axisNum, axisType, axisFlip = segments[2:5]
@@ -253,7 +260,6 @@ class Settings():
                         hatNum, hatDirection = segments[2:]
                         Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(
                             b.BindingControllerButton(command))
-        print('Camera Controller: ',main.current)
         for camera in main.current.cameras:
             if (camera): camera.updateTriggerBinding()
         

@@ -83,9 +83,6 @@ class Main():
         self.inputBuffer = None
         self.inputBufferTime = self.inputBufferTimer = .05 #TODO: make configurable
 
-        self.inputDevicesMidis = []
-        self.outputDevicesMidis = []
-        self.inputDevicesMidiNames=[]
         self.inputDevicesControllers = []
         self.hatBoundVal = [None,None,None,None,None,None,None,None]
 
@@ -104,7 +101,6 @@ class Main():
         self.SettingsMenu= None
         self.SettingsMenuOld = None
         
-        print('Camera Controller1: ',current)
         s.Settings.openConfig()
         
         self.loadControls()
@@ -928,6 +924,7 @@ class Main():
             PasswordFrame.pack(pady=self.PadInt)
             EnterButton.pack(pady=self.PadInt)
             tk.Label(StartFrame, text='Version no. ' + versionNumber).pack(pady=self.PadInt)
+            bindings.BindingMidi.refreshDevices(makeDropdown=StartFrame).pack()
             tk.Button(StartFrame, text='Settings', command=self.OpenSettingsMenu).pack()
 
         StartFrame.pack(padx=15, pady=15)
@@ -935,52 +932,22 @@ class Main():
     def QueueInput(self, command):
         self.inputBuffer=command
 
-    def clearFeedback(self, deviceIndex):
-        if ('Launchpad Mini' in self.getMidiName(deviceIndex)):
-            device=self.outputDevicesMidis[deviceIndex]
-            device.write_short(0xb0, 00,00) #this should clear the pad
-            #for i in range(121):
-            #    device.note_on(i, velocity=0, channel=0)
-
-    def getMidiName(self, deviceIndex):
-        return str(pygame.midi.get_device_info(deviceIndex)[1], 'utf-8')
-    def refreshInputDevicesMidi(self):
-        debug.log('midi devices:')
-        self.inputDevicesMidis = []
-        self.inputDevicesMidiNames = []
-        self.outputDevicesMidis = []
-        for i in range(pygame.midi.get_count()):
-            info = pygame.midi.get_device_info(i)
-            debug.log(info)
-            name=self.getMidiName(i)
-            print(name)
-            if (info[2]==1):
-                self.inputDevicesMidis.append(pygame.midi.Input(i))
-            else:
-                self.inputDevicesMidis.append(None)
-            #throws an error if Microsoft MIDI Mapper is loaded 
-            #TODO: we shouldn't be loading outputs unless we're using them anyways
-            if (info[3]==1 and str(info[1], 'utf-8') != 'Microsoft MIDI Mapper'):
-                self.outputDevicesMidis.append(pygame.midi.Output(i))
-                self.clearFeedback(i)
-                if (name in self.inputDevicesMidiNames):
-                    bindings.Bindables.midiIOMapping[self.inputDevicesMidiNames.index(name)]=i
-            else:
-                self.outputDevicesMidis.append(None)
-            self.inputDevicesMidiNames.append(name)
-        print(bindings.Bindables.midiIOMapping)
 
     def refreshInputDevicesControllers(self):
         debug.log('controllers:')
         self.inputDevicesControllers = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
         debug.log(self.inputDevicesControllers)
         self.inputDevicesControllersLastVals = None
-        #axis bindings are command, type, flip (where 'type' is 'stick' or 'trigger', deadzone is treated differently between the two)
-        #hat bindings are a list of commands for the eight directions (call the direction's command with (1) when the hat moves to that direction, call the direction's command with (0) when the hat moves and hat last was that direction)
+        #axis bindings are command, type, flip (where 'type' is 'stick' or 'trigger',
+        #   deadzone is treated differently between the two)
+        #hat bindings are a list of commands for the eight directions
+        #   (call the direction's command with (1) when the hat moves to that direction,
+        #   call the direction's command with (0) when the hat moves and hat last was that direction)
 
 
         if (len(self.inputDevicesControllers)):
-            controller = pygame.joystick.Joystick(0) #TODO: selector to pick which controller is active, and then a ChangeController function
+            #TODO: selector to pick which controller is active, and then a ChangeController function
+            controller = pygame.joystick.Joystick(0)
             self.inputDevicesControllers.append(controller)
             self.inputDevicesControllersLastVals = { 'axis':[], 'button':[], 'hat':[] }
             for a in range(controller.get_numaxes()):
@@ -993,7 +960,7 @@ class Main():
 
     def loadControls(self):
         pygame.midi.init()
-        self.refreshInputDevicesMidi()
+        #self.refreshInputDevicesMidi()
         pygame.joystick.init()
         self.refreshInputDevicesControllers()
 
@@ -1052,11 +1019,15 @@ class Main():
                 elif (binding):
                     changed, value, changedButton = processAxis(a, binding.type, binding.flip, binding.threshold)
 
-                    #TODO: merge processAxis back into this bit? (now that it's not being used anywhere else, might be able to simplify it back down a bit)
+                    #TODO: merge processAxis back into this bit?
+                    #   (now that it's not being used anywhere else,
+                    #   might be able to simplify it back down a bit)
 
                     if (changed):
                         if (binding.command[1] == 'button'):
-                            if (changedButton): #extra check for button commands, since an axis will otherwise repeatedly send non-0 values
+                            #extra check for button commands,
+                            #   since an axis will otherwise repeatedly send non-0 values
+                            if (changedButton): 
                                 binding.callCommand(value!=0)
                         else: binding.callCommand(value)
 
@@ -1087,7 +1058,8 @@ class Main():
                     if (self.SettingsMenu):
                         if (s.InputRouting.settingsListenForInput):
                             if (hat is not None):
-                                #this nonsense is so diagonals are possible to bind in the interface (since otherwise both directions would need to be pressed in the same frame)
+                                #this nonsense is so diagonals are possible to bind in the interface
+                                #(since otherwise both directions would need to be pressed in the same frame)
                                 if (self.hatBoundVal[h] is None): self.hatBoundVal[h] = hat
                                 elif (hat%2==1): self.hatBoundVal[h] = hat
                             else:
@@ -1105,8 +1077,7 @@ class Main():
     def ProcessMidi(self):
 
         def checkInputValidity(bind): #TODO: move to root of class?
-            return ((not bind.midiDevice or bind.midiDevice ==self.inputDevicesMidiNames[deviceIndex])
-                    and (not bind.midiChannel or bind.midiChannel == channel))
+            return (not bind.midiChannel or bind.midiChannel == channel)
 
         eventNoteOn = 0x90
         eventNoteOff = 0x80
@@ -1120,61 +1091,53 @@ class Main():
         #   and the data of the control 6 command is the value of that message.
         #I think it's supposed to also be able to use the second data byte in control 6 as an LSB for the value,
         #   but I'm unable to test that with this keyboard.
-        for device in self.inputDevicesMidis:
-            if (device and device.poll()):
-                for event in device.read(1024):
-                    event = event[0] #strip the timing component, we don't need it
-                    channel = event[0] & 0b00001111 #just the 0x1s place
-                    command = event[0] & 0b11110000 #just the 0x10s place
-                    if (command == eventNoteOn or command == eventNoteOff):
-                        key = event[1]
-                        if (self.SettingsMenu):
-                            if (s.InputRouting.settingsListenForInput and command==eventNoteOn):
-                                s.InputRouting.bindCommand('midi', 'note', 'button',
-                                                         (self.inputDevicesMidiNames[deviceIndex], channel, key))
-                        else:
-                            state = command == eventNoteOn and event[2]>0 #1 for noteOn, 0 for noteOff, velocity 0 is always off
-                            for bind in s.Settings.commandBinds['midi']['note']:
-                                if (checkInputValidity(bind) and bind.inputNumber == key):
-                                    bind.midiDeviceLast=self.inputDevicesMidiNames[deviceIndex]
-                                    bind.midiChannelLast=channel
-                                    bind.callCommand(state)
+        device=bindings.BindingMidi.deviceIn
+        if (device and device.poll()):
+            #TODO: catch error on disconnect
+            for event in device.read(1024):
+                event = event[0] #strip the timing component, we don't need it
+                channel = event[0] & 0b00001111 #just the 0x1s place
+                command = event[0] & 0b11110000 #just the 0x10s place
+                if (command == eventNoteOn or command == eventNoteOff):
+                    key = event[1]
+                    if (self.SettingsMenu):
+                        if (s.InputRouting.settingsListenForInput and command==eventNoteOn):
+                            s.InputRouting.bindCommand('midi', 'note', 'button',(channel, key))
+                    else:
+                        state = command == eventNoteOn and event[2]>0 #1 for noteOn, 0 for noteOff, velocity 0 is always off
+                        for bind in s.Settings.commandBinds['midi']['note']:
+                            if (checkInputValidity(bind) and bind.inputNumber == key):
+                                bind.midiChannelLast=channel
+                                bind.callCommand(state)
 
-                    elif (command== eventControlChange):
-                        control = event[1]
-                        if (self.SettingsMenu):
-                            if (s.InputRouting.settingsListenForInput != None):
-                                s.InputRouting.bindCommand('midi', 'control', 'analog',
-                                                         (self.inputDevicesMidiNames[deviceIndex], channel, control,
-                                                          bindings.Bindables.thresholdDefaultMidiCC))
-                        else:
-                            value = event[2]/127 #map to 0-1
-                            for bind in s.Settings.commandBinds['midi']['control']:
-                                if (checkInputValidity(bind) and bind.inputNumber == control):
+                elif (command== eventControlChange):
+                    control = event[1]
+                    if (self.SettingsMenu):
+                        if (s.InputRouting.settingsListenForInput != None):
+                            s.InputRouting.bindCommand('midi', 'control', 'analog',
+                                                        (channel, control,
+                                                         bindings.Bindables.thresholdDefaultMidiCC))
+                    else:
+                        value = event[2]/127 #map to 0-1
+                        for bind in s.Settings.commandBinds['midi']['control']:
+                            if (checkInputValidity(bind) and bind.inputNumber == control):
+                                bind.midiChannelLast=channel
 
-                                    bind.midiDeviceLast=self.inputDevicesMidiNames[deviceIndex]
-                                    bind.midiChannelLast=channel
-
-                                    valueProcessed=max(0,(value-bind.threshold)/(1-bind.threshold))
-                                    if (deviceIndex not in bind.valueLast):
-                                        bind.valueLast[deviceIndex]={channel:valueProcessed}
-                                    elif (channel not in bind.valueLast[deviceIndex]):
-                                        bind.valueLast[deviceIndex][channel]=0
-                                    valueLast=bind.valueLast[deviceIndex][channel]
+                                valueProcessed=max(0,(value-bind.threshold)/(1-bind.threshold))
+                                if (channel not in bind.valueLast):
+                                    bind.valueLast[channel]=0
+                                valueLast=bind.valueLast[channel]
                                     
-                                    if (bind.command[1]=='button'):
-                                        if ((valueLast==0)!=(valueProcessed==0)): bind.callCommand(valueProcessed)
-                                    else:
-                                        if (not(valueLast==0 and valueProcessed==0)): bind.callCommand(valueProcessed)
-                                    bind.valueLast[deviceIndex][channel]=valueProcessed
-            deviceIndex += 1
+                                if (bind.command[1]=='button'):
+                                    if ((valueLast==0)!=(valueProcessed==0)): bind.callCommand(valueProcessed)
+                                else:
+                                    if (not(valueLast==0 and valueProcessed==0)): bind.callCommand(valueProcessed)
+                                bind.valueLast[channel]=valueProcessed
 
 
     def main(self):
-        #self.window.update_idletasks()
         self.window.update()
         if (self.SettingsMenu):
-            #self.SettingsMenu.update_idletasks()
             self.SettingsMenu.update()
             self.processInputs()
 

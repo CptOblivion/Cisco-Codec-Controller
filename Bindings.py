@@ -2,6 +2,9 @@
 from helpers import *
 import math
 import main
+import pygame
+import settings as s
+
 class _BindingBase_():
     def __init__(self, command):
         self.command=command
@@ -17,35 +20,86 @@ class _BindingBase_():
         return None
 
 class BindingMidi(_BindingBase_):
-    def __init__(self, midiDevice, midiChannel,inputNumber, command, subdevice, threshold=None):
+    deviceIn = None
+    deviceOut = None
+    deviceNamesIn=[]
+    deviceNamesOut=[]
+    deviceOutIndex=None
+    deviceName = None
+    deviceNamesClean = []
+
+    def refreshDevices(makeDropdown=None):
+        BindingMidi.deviceName = tk.StringVar(main.current.window)
+        #pass in a parent object to makeDropdown to use it
+        BindingMidi.deviceNamesIn.clear()
+        BindingMidi.deviceNamesOut.clear()
+        BindingMidi.deviceNamesClean.clear()
+        for i in range(pygame.midi.get_count()):
+            info = pygame.midi.get_device_info(i)
+            name=str(info[1], 'utf-8')
+            if (info[2]):
+                BindingMidi.deviceNamesIn.append(name)
+                BindingMidi.deviceNamesClean.append(name)
+                BindingMidi.deviceNamesOut.append(None)
+            else:
+                BindingMidi.deviceNamesIn.append(None)
+                BindingMidi.deviceNamesOut.append(name)
+        if (s.Settings.config['Startup']['LastMidiDevice'] in BindingMidi.deviceNamesIn):
+            BindingMidi.deviceName.set(s.Settings.config['Startup']['LastMidiDevice'])
+        else:
+            BindingMidi.deviceName.set(BindingMidi.deviceNamesClean[0])
+        BindingMidi.selectDevice(BindingMidi.deviceName.get())
+        if (makeDropdown): return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
+                                                *BindingMidi.deviceNamesClean, command=BindingMidi.selectDevice)
+
+    def selectDevice(name):
+        num = BindingMidi.deviceNamesIn.index(name)
+        s.Settings.config['Startup']['LastMidiDevice'] = name
+        if (BindingMidi.deviceIn): BindingMidi.deviceIn.close()
+        if (BindingMidi.deviceOut):
+            BindingMidi.clearFeedback()
+            BindingMidi.deviceOut.close()
+        BindingMidi.deviceIn=pygame.midi.Input(num)
+        #name = BindingMidi.deviceNamesIn[num]
+        if (name in BindingMidi.deviceNamesOut):
+            BindingMidi.deviceOutIndex = BindingMidi.deviceNamesOut.index(name)
+            BindingMidi.deviceOut = pygame.midi.Output(BindingMidi.deviceOutIndex)
+            BindingMidi.clearFeedback()
+
+        else: BindingMidi.deviceOut=None
+    def __init__(self, midiChannel,inputNumber, command, subdevice, threshold=None):
         _BindingBase_.__init__(self, command)
         #TODO: if channel is None, when this binding is activated store the channel that was used
-        #TODO: same with device
-        #TODO: or actually, reconsider if midiChannelLast is necessary
-        self.midiDevice=self.midiDeviceLast=midiDevice
-        self.midiChannel = self.midiChannelLast=midiChannel
+        self.midiChannel =midiChannel
+        #TODO: rename subdevice to inputType
         self.subdevice=subdevice
         if (threshold is None):
             threshold=Bindables.thresholdDefaultMidiCC
         self.threshold=threshold
         self.valueLast={}
-        
         self.inputNumber = inputNumber
+
     def triggerFeedback(self, state): #state is bool
-        deviceIndex=main.current.inputDevicesMidiNames.index(self.midiDevice)
-        if (self.midiDevice is not None and self.midiChannel is not None and self.inputNumber is not None
-           and deviceIndex in Bindables.midiIOMapping):
-            outNum=Bindables.midiIOMapping[deviceIndex]
-            outDevice=main.current.outputDevicesMidis[outNum]
+        if (BindingMidi.deviceOut and self.midiChannel is not None and self.inputNumber is not None):
             if (state): vel = 63
             else: vel=0
             if (self.subdevice=='note'):
-                outDevice.note_on(self.inputNumber, velocity=vel,
+                BindingMidi.deviceOut.note_on(self.inputNumber, velocity=vel,
                                 channel=self.midiChannel)
             else:
-                outDevice.write_short(0xb0+self.midiChannel,self.inputNumber, vel)
+                BindingMidi.deviceOut.write_short(0xb0+self.midiChannel,self.inputNumber, vel)
             return self #success
         return None #no dice
+    def clearFeedback():
+        if (BindingMidi.deviceOut):
+            if ('Launchpad Mini' in BindingMidi.deviceNamesOut[BindingMidi.deviceOutIndex]):
+                BindingMidi.deviceOut.write_short(0xb0, 00,00) #this should clear the pad
+                #for i in range(121):
+                #    BindingMidi.deviceOut.note_on(i, velocity=0, channel=0)
+
+    #old helper function, probably safe to delete
+    #def getMidiName(deviceIndex):
+    #    return str(pygame.midi.get_device_info(deviceIndex)[1], 'utf-8')
 
 class BindingControllerButton(_BindingBase_):
     def __init__(self, command):
@@ -65,9 +119,6 @@ class Bindables():
     thresholdDefaultMidiCC = .1
 
     PresetWrite=False
-
-    #TODO: this should be a list corresponding to cameras
-    lastPresetBinding=[None, None, None, None, None, None, None, None]
 
     midiIOMapping={}
     
@@ -235,12 +286,6 @@ class Bindables():
                             preset.activatePreset()
                         triggered=True
                         break
-            if (triggered):
-                #TODO: store the binding on the preset object, so it can be lit (or unlit) if triggered through the UI instead of through a binding
-                if (Bindables.lastPresetBinding[camNum]):
-                    Bindables.lastPresetBinding[camNum].triggerFeedback(False)
-                Bindables.lastPresetBinding[camNum]=binding
-                binding.triggerFeedback(True)
 
     
     bindablePresets=[]
