@@ -7,10 +7,10 @@ import datetime
 forceCameraConnection = False
 #turning this to true will add a bunch of extra debug prints to the console
 verbosePrints = False #TODO: safe to delete?
-logfileName = 'Error_Log_'+VersionNumber+'.txt'
+logfileName = 'Error_Log_'+versionNumber+'.txt'
 
 
-def print(message):
+def log(message):
     if ('printVerbose' in globals() and printVerbose.get()):
         print(message)
 def printCodec(message):

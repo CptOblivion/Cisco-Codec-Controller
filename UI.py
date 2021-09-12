@@ -1,7 +1,9 @@
 
 from helpers import *
-from Bindings import *
-from Camera import *
+import bindings
+import camera as c
+import settings as s
+import main
 
 iconWarning=None
 class Icons():
@@ -10,11 +12,6 @@ class Icons():
         if (not Icons.init):
             Icons.iconWarning=tk.PhotoImage(file=Assets.getAsset('Icon_Warning.png'))
             #TODO: resize to current pixel height of a row of text
-class UISettingsProxy():
-    #class to reach a couple functions in Settings, to avoid circular importing
-    changeMade=None
-    commandBinds=None
-    inputRoutingBindListen=None
 
 class ToggleButton(tk.Button):
 
@@ -154,13 +151,13 @@ class ScrollFrame(tk.Frame):
         #TODO: mac systems might not need the 120 divider
         self.canvas.yview_scroll(int(-1*(event.delta/120)),'units')
 
-class bindingFrame(tk.Frame):
+class BindingFrame(tk.Frame):
     conflicts={}
     #class to hold an individual keybind within a control
     labelUnassignedDevice = 'select device'
     labelUnassignedSubdevice = 'select input type'
 
-    class parsedEntry(tk.Entry):
+    class ParsedEntry(tk.Entry):
         #subclass of entry to display, adjust, and error check binding inputs
         def __init__(self, parent, parentBinding, rules, initialValue, range=None, **args):
             tk.Entry.__init__(self, parent, **args)
@@ -181,7 +178,7 @@ class bindingFrame(tk.Frame):
             if (self.rules=='int'): self.rulesInt(self.get())
             elif (self.rules=='midi'): self.rulesMidi(self.get())
             elif (self.rules=='midiString'): self.rulesMidiString(self.get())
-            UISettingsProxy.changeMade(self.bindingFrame)
+            s.Settings.changeMade(self.bindingFrame)
 
         def rulesMidi(self, input):
             #convert string into a valid midi channel (int or 'any')
@@ -225,9 +222,9 @@ class bindingFrame(tk.Frame):
     def __init__(self, parent, command, deviceType=None, deviceSubtype=None, contents=None, **options):
         tk.Frame.__init__(self, parent, **options)
         self.deviceType=tk.StringVar(self)
-        self.deviceType.set(bindingFrame.labelUnassignedDevice)
+        self.deviceType.set(BindingFrame.labelUnassignedDevice)
         self.deviceSubtype = tk.StringVar(self)
-        self.deviceSubtype.set(bindingFrame.labelUnassignedSubdevice)
+        self.deviceSubtype.set(BindingFrame.labelUnassignedSubdevice)
         self.deviceTypeLast = None
         self.deviceSubtypeLast = None
         Icons.load()
@@ -240,11 +237,11 @@ class bindingFrame(tk.Frame):
         if True:
             self.conflictIcon=tk.Label(self.titlebar)
             self.listenButton = tk.Button(self.titlebar, text='listen for input',
-                                          command=lambda:UISettingsProxy.inputRoutingBindListen(self))
-            self.deviceTypeLabel = tk.OptionMenu(self.titlebar, self.deviceType, bindingFrame.labelUnassignedDevice,
+                                          command=lambda:s.InputRouting.bindListen(self))
+            self.deviceTypeLabel = tk.OptionMenu(self.titlebar, self.deviceType, BindingFrame.labelUnassignedDevice,
                                                  'controller', 'midi', command=self.changeDeviceType)
             self.deviceSubtypeLabel = tk.OptionMenu(self.titlebar, self.deviceSubtype,
-                                                    bindingFrame.labelUnassignedSubdevice, command=self.changeDeviceSubtype)
+                                                    BindingFrame.labelUnassignedSubdevice, command=self.changeDeviceSubtype)
             
             self.conflictIcon.pack(side='left')
             self.listenButton.pack(side='left')
@@ -256,7 +253,7 @@ class bindingFrame(tk.Frame):
         self.setDevice(deviceType, deviceSubtype, contents)
 
     def destroySelf(self):
-        UISettingsProxy.changeMade(self, removed=True)
+        s.Settings.changeMade(self, removed=True)
         self.destroy()
     def compareBind(self, binding):
         if (self.contents and binding.contents and self.deviceType.get()==binding.deviceType.get() and
@@ -278,25 +275,25 @@ class bindingFrame(tk.Frame):
 
     def addConflict(self, binding):
         if (binding != self):
-            if (self not in bindingFrame.conflicts):
-                bindingFrame.conflicts[self]=[]
-            if (binding not in bindingFrame.conflicts[self]):
-                bindingFrame.conflicts[self].append(binding)
+            if (self not in BindingFrame.conflicts):
+                BindingFrame.conflicts[self]=[]
+            if (binding not in BindingFrame.conflicts[self]):
+                BindingFrame.conflicts[self].append(binding)
             self.conflictIcon.config(image=Icons.iconWarning)
             self.master.root.conflictIcon.config(image=Icons.iconWarning)
             if (self.master.root.categoryFrame):
                 self.master.root.categoryFrame.root.conflictIcon.config(image=Icons.iconWarning)
     def removeConflict(self, binding):
         if (binding != self):
-            if (self in bindingFrame.conflicts):
-                if (binding in bindingFrame.conflicts[self]):
-                    bindingFrame.conflicts[self].remove(binding)
-                    if (len(bindingFrame.conflicts[self])==0):
-                        del bindingFrame.conflicts[self]
+            if (self in BindingFrame.conflicts):
+                if (binding in BindingFrame.conflicts[self]):
+                    BindingFrame.conflicts[self].remove(binding)
+                    if (len(BindingFrame.conflicts[self])==0):
+                        del BindingFrame.conflicts[self]
                         self.conflictIcon.config(image='')
                         frameClear=True
                         for child in self.master.winfo_children():
-                            if (child in bindingFrame.conflicts):
+                            if (child in BindingFrame.conflicts):
                                 frameClear=False
                                 break
                         if (frameClear):
@@ -323,33 +320,33 @@ class bindingFrame(tk.Frame):
                 self.removeConflict(changedBinding)
                 changedBinding.removeConflict(self)
 
-        return(len(bindingFrame.conflicts)>0)
+        return(len(BindingFrame.conflicts)>0)
 
     #versions of changeMade with different amounts of inputs
-    #   (that will be discarded, and pass self along to UISettingsProxy.changeMade
+    #   (that will be discarded, and pass self along to s.Settings.changeMade
     #instead of making a bunch of the same lambda to discard inputs
     def changeMade0(self):
-        UISettingsProxy.changeMade(self)
+        s.Settings.changeMade(self)
     def changeMade1(self, value):
-        UISettingsProxy.changeMade(self)
+        s.Settings.changeMade(self)
     def changeDeviceType(self, deviceType):
         if (self.deviceTypeLast != deviceType):
-            UISettingsProxy.changeMade(self)
+            s.Settings.changeMade(self)
             self.setDevice(deviceType, None)
     def changeDeviceSubtype(self, deviceSubtype):
         if (self.deviceSubtypeLast != deviceSubtype):
-            UISettingsProxy.changeMade(self)
+            s.Settings.changeMade(self)
             self.setDevice(self.deviceType.get(), deviceSubtype)
     def setDevice(self, deviceType, deviceSubtype, contents=None):
         if (self.deviceTypeLast != deviceType or self.deviceSubtypeLast != deviceSubtype):
-            if (deviceType == None or deviceType == bindingFrame.labelUnassignedDevice):
-                self.deviceType.set(bindingFrame.labelUnassignedDevice)
+            if (deviceType == None or deviceType == BindingFrame.labelUnassignedDevice):
+                self.deviceType.set(BindingFrame.labelUnassignedDevice)
                 self.deviceSubtypeLabel.forget()
             else:
                 self.deviceType.set(deviceType)
                 self.deviceSubtypeLabel.pack(side='left', padx=(10,3)) #TODO: test if this breaks the layout on assigning and then unassigning a bind
-                if (deviceSubtype == None or deviceSubtype== bindingFrame.labelUnassignedSubdevice):
-                    self.deviceSubtype.set(bindingFrame.labelUnassignedSubdevice)
+                if (deviceSubtype == None or deviceSubtype== BindingFrame.labelUnassignedSubdevice):
+                    self.deviceSubtype.set(BindingFrame.labelUnassignedSubdevice)
                 else:
                     self.deviceSubtype.set(deviceSubtype)
 
@@ -387,21 +384,21 @@ class bindingFrame(tk.Frame):
 
 
                     tk.Label(self.body, text='device: ').pack(side='left', padx=2, pady=2)
-                    self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'midiString',contents[0], width=40)
+                    self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'midiString',contents[0], width=40)
                     self.contents[0].pack(side='left', padx=2, pady=2)
 
                     tk.Label(self.body, text='channel: ').pack(side='left', padx=2, pady=2)
-                    self.contents[1]= bindingFrame.parsedEntry(self.body, self, 'midi',contents[1], width=3)
+                    self.contents[1]= BindingFrame.ParsedEntry(self.body, self, 'midi',contents[1], width=3)
                     self.contents[1].pack(side='left', padx=2, pady=2)
 
                     tk.Label(self.body, text='index: ').pack(side='left', padx=2, pady=2)
-                    self.contents[2]= bindingFrame.parsedEntry(self.body, self, 'int',contents[2], width=3)
+                    self.contents[2]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[2], width=3)
                     self.contents[2].pack(side='left', padx=2, pady=2)
 
                     if (deviceSubtype == 'control'):
                         self.contents[3] = tk.DoubleVar(self.body)
                         if (len(contents)==4 and contents[3]): self.contents[3].set(contents[3])
-                        else: self.contents[3].set(bindables.thresholdDefaultMidiCC)
+                        else: self.contents[3].set(bindings.Bindables.thresholdDefaultMidiCC)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0, to_=1, digits=3, resolution=0.01,
                                  orient='horizontal', command=self.changeMade1).pack(side='left', padx=2, pady=2)
@@ -412,7 +409,7 @@ class bindingFrame(tk.Frame):
                         if (contents == None): contents = [None, None, None, None]
                         self.contents = [None, None, None, None]
                         tk.Label(self.body, text='axis: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
+                        self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
                         
                         tk.Label(self.body, text='type: ').pack(side='left', padx=2, pady=2)
@@ -429,7 +426,7 @@ class bindingFrame(tk.Frame):
 
                         self.contents[3] = tk.DoubleVar(self.body)
                         if (contents[3] is not None): self.contents[3].set(contents[3])
-                        else: self.contents[3].set(bindables.thresholdDefaultController)
+                        else: self.contents[3].set(bindings.Bindables.thresholdDefaultController)
                         tk.Label(self.body, text='threshold').pack(side='left', padx=2, pady=2)
                         tk.Scale(self.body, variable=self.contents[3], from_=0.01, to_=1, digits=3, resolution=0.01,
                                  orient='horizontal', command=self.changeMade1).pack(side='left', padx=2, pady=2)
@@ -440,7 +437,7 @@ class bindingFrame(tk.Frame):
                         self.contents=[None]
                         
                         tk.Label(self.body, text='button: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
+                        self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
 
                     elif (deviceSubtype == 'hat'):
@@ -449,30 +446,30 @@ class bindingFrame(tk.Frame):
                         self.contents=[None, None]
 
                         tk.Label(self.body, text='hat number: ').pack(side='left', padx=2, pady=2)
-                        self.contents[0]= bindingFrame.parsedEntry(self.body, self, 'int',contents[0], width=3)
+                        self.contents[0]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[0], width=3)
                         self.contents[0].pack(side='left', padx=2, pady=2)
                         
                         tk.Label(self.body, text='hat direction (clockwise, 0 is up): ').pack(side='left', padx=2, pady=2)
-                        self.contents[1]= bindingFrame.parsedEntry(self.body, self, 'int',contents[1], range=(0,7), width=3)
+                        self.contents[1]= BindingFrame.ParsedEntry(self.body, self, 'int',contents[1], range=(0,7), width=3)
                         self.contents[1].pack(side='left', padx=2, pady=2)
                 elif (deviceType == 'keyboard'):
                     None
     def getSubtypeString(self):
         return self.deviceType + '_' + self.deviceSubtype
     def makeOutput(self, commandAddress):
-        if (self.contents and self.deviceSubtype.get() != bindingFrame.labelUnassignedSubdevice):
+        if (self.contents and self.deviceSubtype.get() != BindingFrame.labelUnassignedSubdevice):
             if(self.deviceType.get() == 'midi'):
                 midiDevice, midiChannel, inputNumber, threshold = self.contents
 
                 outstring= commandAddress + ',midi.'+ self.deviceSubtype.get() +','+midiDevice.get() + ',' + midiChannel.get()+','+inputNumber.get()
-                if (threshold is not None and threshold.get() != bindables.thresholdDefaultMidiCC): outstring += ','+str(threshold.get())
+                if (threshold is not None and threshold.get() != bindings.Bindables.thresholdDefaultMidiCC): outstring += ','+str(threshold.get())
                 return outstring
         
             elif(self.deviceType.get() == 'controller'):
                 if (self.deviceSubtype.get() == 'axis'):
                     axisNum, axisType, axisFlip, threshold = self.contents
                     outstring= commandAddress + ',controller.axis,'+axisNum.get() + ',' + axisType.get() + ','+str(axisFlip.get())
-                    if (threshold.get() != bindables.thresholdDefaultController): outstring += ','+str(threshold.get())
+                    if (threshold.get() != bindings.Bindables.thresholdDefaultController): outstring += ','+str(threshold.get())
                     return outstring
                 elif (self.deviceSubtype.get() == 'button'):
                     buttonNum=self.contents[0]
@@ -511,26 +508,26 @@ class ControlBindPanel(ToggleFrame):
             if (not binding):
                 return False
             command=binding.command
-            if (self.bindableName.startswith(bindables.bindingPresetsPrefix)):
-                command=self.bindableName[len(bindables.bindingPresetsPrefix):]
+            if (self.bindableName.startswith(bindings.Bindables.bindingPresetsPrefix)):
+                command=self.bindableName[len(bindings.Bindables.bindingPresetsPrefix):]
                 if (binding.bindablePreset==command):
                     return True
-            elif (command==bindables.index[self.bindableName]): return True
+            elif (command==bindings.Bindables.index[self.bindableName]): return True
             return False
 
          #digital inputs can only be bound to button commands, or commands that handle their own input
         if (command[1]=='button' or command[1]=='both'):
-            for binding in UISettingsProxy.commandBinds['midi']['note']:
+            for binding in s.Settings.commandBinds['midi']['note']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='midi', deviceSubtype='note',
                                     contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber))
             b=0
-            for binding in UISettingsProxy.commandBinds['controller']['button']:
+            for binding in s.Settings.commandBinds['controller']['button']:
                 if (compareCommand()):
                     self.AddBinding(deviceType='controller', deviceSubtype='button', contents=[b])
                 b+=1
             h = 0
-            for hat in UISettingsProxy.commandBinds['controller']['hat']:
+            for hat in s.Settings.commandBinds['controller']['hat']:
                 direction=0
                 for binding in hat:
                     if (compareCommand()):
@@ -539,28 +536,28 @@ class ControlBindPanel(ToggleFrame):
                 h+=1
 
         #analog inputs can always be bound to button commands, as long as the threshold is properly set
-        for binding in UISettingsProxy.commandBinds['midi']['control']:
+        for binding in s.Settings.commandBinds['midi']['control']:
             if (compareCommand()):
                 self.AddBinding(deviceType='midi', deviceSubtype='control',
                                 contents=(binding.midiDevice,binding.midiChannel,binding.inputNumber, binding.threshold))
         a=0
-        for binding in UISettingsProxy.commandBinds['controller']['axis']:
+        for binding in s.Settings.commandBinds['controller']['axis']:
             if (compareCommand()):
                 self.AddBinding(deviceType='controller', deviceSubtype='axis',
                                 contents=[a, binding.type,binding.flip, binding.threshold])
             a+=1
 
     def AddBinding(self, deviceType=None, deviceSubtype=None, contents=None):
-        newBinding=bindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
+        newBinding=BindingFrame(self.BindingList, self.command, relief='ridge', borderwidth=2, deviceType=deviceType,
                      deviceSubtype=deviceSubtype, contents=contents)
         newBinding.pack(fill='x', padx=2, pady=2)
-        UISettingsProxy.changeMade(newBinding)
+        s.Settings.changeMade(newBinding)
 
 class ControlBindPresetPanel(ControlBindPanel):
     def __init__(self, parent, bindableName, command, presetName, bindsList, newBinding=False, **options):
         ControlBindPanel.__init__(self, parent, bindableName,command,**options)
         def updateCommandName(newText):
-            self.bindableName=bindables.bindingPresetsPrefix+newText
+            self.bindableName=bindings.Bindables.bindingPresetsPrefix+newText
             #TODO: make invalid if newText is empty
             return True
         validateCommand=self.register(updateCommandName)
@@ -574,7 +571,7 @@ class ControlBindPresetPanel(ControlBindPanel):
         def deleteButton():
             ControlBindPresetPanel.bindsList.remove(self)
             for binding in self.BindingList.winfo_children():
-                UISettingsProxy.changeMade(binding, removed=True)
+                s.Settings.changeMade(binding, removed=True)
             self.destroy()
 
         tk.Button(self.Titlebar, text='X', command=deleteButton).pack(side='left')
@@ -632,7 +629,7 @@ class CameraPresetPanel(tk.Frame):
         self.frameName.pack(fill='x')
         self.frameMain.pack(fill='x', expand=True)
         self.updateContents()
-        self.SetEditState(controller.current.TogglePresetEdit.state)
+        self.SetEditState(main.current.TogglePresetEdit.state)
         self.filter()
 
     def updateContents(self):
@@ -646,7 +643,7 @@ class CameraPresetPanel(tk.Frame):
 
     def saveToPreset(self):
         if (self.cameraId):
-            controller.current.shell.send('xCommand Camera Preset Store '
+            main.current.shell.send('xCommand Camera Preset Store '
                         + 'PresetId: ' + str(self.presetId)
                         + ' CameraId: '+ str(self.cameraId)
                         + ' ListPosition: ' + str(self.index)
@@ -654,7 +651,7 @@ class CameraPresetPanel(tk.Frame):
         else:
             if (self.presetNameEntry.get() != ''):
                 self.name= self.presetNameEntry.get()
-            controller.current.shell.send('xCommand Preset Store PresetId: '
+            main.current.shell.send('xCommand Preset Store PresetId: '
                                           + str(self.presetId) + ' Type:Camera Description: "'+self.name+'"\n')
             #TODO: write "all cameras" preset
 
@@ -665,7 +662,7 @@ class CameraPresetPanel(tk.Frame):
         if (self.cameraId):
             presetName=self.presetNameEntry.get()
             if (presetName):
-                controller.current.shell.send('xCommand Camera Preset Edit PresetId: ' + str(self.presetId)
+                main.current.shell.send('xCommand Camera Preset Edit PresetId: ' + str(self.presetId)
                             + ' Name: ' + presetName + '\n')
                 self.presetNameLabel.config(text=presetName)
         elif (self.cameraId == 0):
@@ -675,14 +672,14 @@ class CameraPresetPanel(tk.Frame):
 
     def deletePreset(self):
         if (self.cameraId == 0):
-            controller.current.shell.send('xCommand Preset Clear PresetId:' + str(self.presetId) +'\n')
-            controller.current.CamerasPresets[self.index] = None
+            main.current.shell.send('xCommand Preset Clear PresetId:' + str(self.presetId) +'\n')
+            main.current.CamerasPresets[self.index] = None
             self.grid_forget()
-            for preset in controller.current.CamerasPresets:
+            for preset in main.current.CamerasPresets:
                 if (preset): preset.filter()
         else:
-            controller.current.shell.send('xCommand Camera Preset Remove PresetId: ' + str(self.presetId) +'\n')
-            controller.current.CameraPresets[self.index] = None
+            main.current.shell.send('xCommand Camera Preset Remove PresetId: ' + str(self.presetId) +'\n')
+            main.current.CameraPresets[self.index] = None
         self.destroy()
 
     def rearrangePreset(self, shift):
@@ -699,14 +696,14 @@ class CameraPresetPanel(tk.Frame):
                     self.grid(column=self.cameraId, row=newIndex, sticky='nsew')
                     targetWidget.grid(column=self.cameraId, row=currentIndex, sticky='nsew')
 
-            controller.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetId)+
+            main.current.shell.send('xCommand Camera Preset Edit PresetID: ' + str(self.presetId)+
                                           ' ListPosition: '+ str(self.index) +'\n')
 
     def activatePreset(self):
         if (self.cameraId):
-            controller.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
+            main.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
         else:
-            controller.current.shell.send('xCommand Preset Activate PresetID: ' + str(self.presetId)+'\n')
+            main.current.shell.send('xCommand Preset Activate PresetID: ' + str(self.presetId)+'\n')
 
 
     def SetEditState(self, unlock):
@@ -726,10 +723,10 @@ class CameraPresetPanel(tk.Frame):
     
     def filter(self):
         if (self.isValid()):
-            if (self.cameraId > 0 and (controller.current.PresetsFilteredConnected.get()
-                 and not controller.current.cameras[self.cameraId].connected)
-                or (controller.current.PresetsFilteredCurrent.get()
-                    and Camera.selectedNum!=self.cameraId)):
+            if (self.cameraId > 0 and (main.current.PresetsFilteredConnected.get()
+                 and not main.current.cameras[self.cameraId].connected)
+                or (main.current.PresetsFilteredCurrent.get()
+                    and c.Camera.selectedNum!=self.cameraId)):
                     self.grid_forget()
             else:
                 col=self.cameraId

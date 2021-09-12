@@ -1,6 +1,7 @@
+
 from helpers import *
-from Settings import *
-#from Bindings import *
+import settings as s
+import main
 
 class Camera():
     selected=None
@@ -46,15 +47,15 @@ class Camera():
         self.connected=False
         self.onDeselect()
         self.selectButton.config(image=Camera.imageCamNone, state='disabled')
-        controller.current.filterPresetsCurrent()
+        main.current.filterPresetsCurrent()
     def onEnable(self):
         self.connected=True
         self.onDeselect()
-        controller.current.filterPresetsCurrent()
+        main.current.filterPresetsCurrent()
     def updateTriggerBinding(self):
         #always run this function on camera creation and, after cameras are created, on binding change
-        for bindingType in Settings.commandBinds['midi']:
-            for binding in Settings.commandBinds['midi'][bindingType]: #checking both note and command within midi bindings
+        for bindingType in s.Settings.commandBinds['midi']:
+            for binding in s.Settings.commandBinds['midi'][bindingType]: #checking both note and command within midi bindings
                 if (binding):
                     if (binding.command[0].__name__ == 'selectCamera' + str(self.number)):
                         self.triggerBinding = binding
@@ -67,4 +68,4 @@ class Camera():
             Camera.selected=newCamera
             Camera.selectedNum = newCamera.number
             newCamera.onSelect()
-            controller.current.OnCameraChange(newCamera.number)
+            main.current.OnCameraChange(newCamera.number)

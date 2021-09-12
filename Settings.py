@@ -2,12 +2,13 @@
 from helpers import *
 from configparser import ConfigParser
 from copy import deepcopy
-from Bindings import *
 import debug
-from UI import *
+import bindings as b
+import main
+import ui
 
 class Settings():
-    iniFilename='CameraController_'+VersionNumber+'.ini' 
+    iniFilename='CameraController_'+versionNumber+'.ini' 
     CustomCommandName="Add custom commands below this line (just make sure they're tabbed in a level)"
     Defaults = {
         'Startup':{
@@ -79,30 +80,27 @@ class Settings():
         Settings.building=True
     def buildBindingsFrame(freshFrame=True):
         if (freshFrame):
-            controller.current.SettingsMenu.bindingsList = ScrollFrame(controller.current.SettingsMenu, maxHeight=400)
-            UISettingsProxy.changeMade=Settings.changeMade
-            UISettingsProxy.commandBinds=Settings.commandBinds
-            UISettingsProxy.inputRoutingBindListen=inputRouting.bindListen
+            main.current.SettingsMenu.bindingsList = ui.ScrollFrame(main.current.SettingsMenu, maxHeight=400)
         Settings.building=True
         Settings.tempBinds=[]
         i=0
         categoryFrame=None
         categoryEnd=None
-        for key in bindables.index:
-            if (key.startswith(bindables.bindingCategory)):
-                categoryEnd=bindables.index[key]
-                title=key[len(bindables.bindingCategory):]
-                categoryFrame=ToggleFrame(controller.current.SettingsMenu.bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title,
+        for key in b.Bindables.index:
+            if (key.startswith(b.Bindables.bindingCategory)):
+                categoryEnd=b.Bindables.index[key]
+                title=key[len(b.Bindables.bindingCategory):]
+                categoryFrame=ui.ToggleFrame(main.current.SettingsMenu.bindingsList.contents, title=title, keepTitle=False, buttonShowTitle=title,
                                             buttonHideTitle='collapse', togglePin='left', contentPadx=(30,3),
                                             relief='groove', borderwidth=2)
                 categoryFrame.pack(fill='x', expand=True)
                 categoryFrame.conflictIcon=tk.Label(categoryFrame.Titlebar)
                 categoryFrame.conflictIcon.pack(side='left', before=categoryFrame.expandButton)
                 categoryFrame=categoryFrame.contentFrame
-                if (key == bindables.bindingPresets):
+                if (key == b.Bindables.bindingPresets):
                     def addNewPreset(frame):
-                        newPanel=ControlBindPresetPanel(frame, bindables.bindingPresetsPrefix+'unnamed',
-                                                        bindables.index[key], 'unnamed', Settings.tempBinds,
+                        newPanel=ui.ControlBindPresetPanel(frame, b.Bindables.bindingPresetsPrefix+'unnamed',
+                                                        b.Bindables.index[key], 'unnamed', Settings.tempBinds,
                                                         newBinding=True)
                         newPanel.categoryFrame=categoryFrame
                         newPanel.pack(fill='x', expand=True)
@@ -115,9 +113,9 @@ class Settings():
                     panelBody.root=categoryFrame.root
                     tk.Button(panelSide, text='+', command=lambda frame=panelBody: addNewPreset(frame)).pack()
 
-                    for pkey in bindables.bindablePresets:
-                        Settings.tempBinds.append(ControlBindPresetPanel(panelBody, bindables.bindingPresetsPrefix+pkey,
-                                                                bindables.index[key], pkey, Settings.tempBinds))
+                    for pkey in b.Bindables.bindablePresets:
+                        Settings.tempBinds.append(ui.ControlBindPresetPanel(panelBody, b.Bindables.bindingPresetsPrefix+pkey,
+                                                                b.Bindables.index[key], pkey, Settings.tempBinds))
                         Settings.tempBinds[i].categoryFrame=categoryFrame
                         Settings.tempBinds[i].pack(fill='x', expand=True)
                         i+=1
@@ -125,12 +123,13 @@ class Settings():
                     categoryEnd=None
             else:
                 if(categoryFrame):
-                    newPanel=ControlBindPanel(categoryFrame, key, bindables.index[key])
+                    newPanel=ui.ControlBindPanel(categoryFrame, key, b.Bindables.index[key])
                     newPanel.categoryFrame=categoryFrame
                     if (key==categoryEnd):
                         categoryEnd=categoryFrame=None
                 else:
-                    newPanel=ControlBindPanel(controller.current.SettingsMenu.bindingsList.contents, key, bindables.index[key])
+                    newPanel=ui.ControlBindPanel(main.current.SettingsMenu.bindingsList.contents,
+                                                 key, b.Bindables.index[key])
                 Settings.tempBinds.append(newPanel)
                 Settings.tempBinds[i].pack(fill='x', expand=True)
                 i+=1
@@ -171,7 +170,7 @@ class Settings():
             Settings.resetBindings()
 
     def resetBindings():
-        for child in controller.current.SettingsMenu.bindingsList.contents.winfo_children():
+        for child in main.current.SettingsMenu.bindingsList.contents.winfo_children():
             child.destroy()
         Settings.SaveBindings(bindingString=Settings.Defaults['Startup']['Bindings'])
         Settings.buildBindingsFrame(freshFrame=False)
@@ -197,30 +196,30 @@ class Settings():
         return bindingString
 
     def fixBinding(bindingString):
-        if bindingString in bindables.iniRename:
-            newBindingString = bindables.iniRename[bindingString]
-            debug.print('updating old binding "'+bindingString+'" to "'+newBindingString+'"')
+        if bindingString in b.Bindables.iniRename:
+            newBindingString = b.Bindables.iniRename[bindingString]
+            debug.log('updating old binding "'+bindingString+'" to "'+newBindingString+'"')
             return newBindingString
         return bindingString
 
     def parseBindings(bindingString):
         Settings.commandBinds = deepcopy(Settings.commandBindsEmpty) #maybe unnecessary to deep copy? The source is like six entries so it's fine either way
         lines=bindingString.splitlines()
-        bindables.bindablePresets=[]
+        b.Bindables.bindablePresets=[]
         for line in lines:
             if line:
                 presetName=None
 
                 segments=line.split(',')
-                debug.print(line)
+                debug.log(line)
                 commandIndex = Settings.fixBinding(segments[0])
 
-                if (commandIndex.startswith(bindables.bindingPresetsPrefix)):
-                    presetName=commandIndex[len(bindables.bindingPresetsPrefix):]
-                    commandIndex=bindables.bindingPresets
-                    if (not presetName in bindables.bindablePresets):
-                        bindables.bindablePresets.append(presetName)
-                command=bindables.index[commandIndex]
+                if (commandIndex.startswith(b.Bindables.bindingPresetsPrefix)):
+                    presetName=commandIndex[len(b.Bindables.bindingPresetsPrefix):]
+                    commandIndex=b.Bindables.bindingPresets
+                    if (not presetName in b.Bindables.bindablePresets):
+                        b.Bindables.bindablePresets.append(presetName)
+                command=b.Bindables.index[commandIndex]
 
                 def addBinding(binding): #TODO: move to root of class
                     if (presetName is not None):
@@ -238,51 +237,51 @@ class Settings():
                     if (inputNumber=='any'): inputNumber = None #TODO: parse as int only (no None)
                     else: inputNumber = int(inputNumber)
                     Settings.commandBinds[bindingDevice][bindingSubdevice].append(
-                        addBinding(bindingMidi(midiDevice,midiChannel, inputNumber, command, bindingSubdevice, threshold=threshold)))
+                        addBinding(b.BindingMidi(midiDevice,midiChannel, inputNumber, command, bindingSubdevice, threshold=threshold)))
                 elif (bindingDevice=='controller'):
                     if (bindingSubdevice == 'axis'):
                         axisNum, axisType, axisFlip = segments[2:5]
                         if (len(segments)==6): threshold = float(segments[5])
                         else: threshold=None
                         Settings.commandBinds['controller']['axis'][int(axisNum)] = addBinding(
-                            bindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
+                            b.BindingControllerAxis(axisType, int(axisFlip), command, threshold=threshold))
                     elif (bindingSubdevice == 'button'):
                         button = segments[2]
                         Settings.commandBinds['controller']['button'][int(button)] = addBinding(
-                            bindingControllerButton(command))
+                            b.BindingControllerButton(command))
                     elif (bindingSubdevice == 'hat'):
                         hatNum, hatDirection = segments[2:]
                         Settings.commandBinds['controller']['hat'][int(hatNum)][int(hatDirection)] = addBinding(
-                            bindingControllerButton(command))
-        UISettingsProxy.commandBinds=Settings.commandBinds
-        for camera in controller.current.cameras:
+                            b.BindingControllerButton(command))
+        print('Camera Controller: ',main.current)
+        for camera in main.current.cameras:
             if (camera): camera.updateTriggerBinding()
         
 
-class inputRouting():
+class InputRouting():
     settingsListenForInput = None
     def bindCommand(deviceType, deviceSubtype,inputType, contents):
         commandTypeIndex = inputType=='analog' #0 if it's 'button', 1 if it's 'analog'
-        if ((commandTypeIndex==1) or inputRouting.settingsListenForInput.commandType[commandTypeIndex]): #TODO: this is a hacky holdover. Rework to a cleaner version of "button can take analog input, analog can't take digital input"
-            inputRouting.settingsListenForInput.changeDeviceType(None)
-            inputRouting.settingsListenForInput.setDevice(deviceType, deviceSubtype, contents)
-            Settings.changeMade(inputRouting.settingsListenForInput)
-            inputRouting.bindListenCancel()
+        if ((commandTypeIndex==1) or InputRouting.settingsListenForInput.commandType[commandTypeIndex]): #TODO: this is a hacky holdover. Rework to a cleaner version of "button can take analog input, analog can't take digital input"
+            InputRouting.settingsListenForInput.changeDeviceType(None)
+            InputRouting.settingsListenForInput.setDevice(deviceType, deviceSubtype, contents)
+            Settings.changeMade(InputRouting.settingsListenForInput)
+            InputRouting.bindListenCancel()
     def bindListen(bindingFrame):
-        inputRouting.bindListenCancel()
-        inputRouting.settingsListenForInput = bindingFrame
+        InputRouting.bindListenCancel()
+        InputRouting.settingsListenForInput = bindingFrame
         bindingFrame.listenButton.config(relief='sunken')
-        controller.current.SettingsMenu.bind('<KeyPress-Escape>', inputRouting.bindListenCancelInput)
-        controller.current.SettingsMenu.bind('<Button 1>', inputRouting.bindListenCancelInput)
+        main.current.SettingsMenu.bind('<KeyPress-Escape>', InputRouting.bindListenCancelInput)
+        main.current.SettingsMenu.bind('<Button 1>', InputRouting.bindListenCancelInput)
 
     def bindListenCancelInput(discard):
-        inputRouting.bindListenCancel()
+        InputRouting.bindListenCancel()
     def bindListenCancel():
-        controller.current.SettingsMenu.unbind('<KeyPress-Escape>')
-        controller.current.SettingsMenu.unbind('<Button 1>')
-        if (inputRouting.settingsListenForInput):
-            inputRouting.settingsListenForInput.listenButton.config(relief='raised')
-        inputRouting.bindListenCancelSafe()
+        main.current.SettingsMenu.unbind('<KeyPress-Escape>')
+        main.current.SettingsMenu.unbind('<Button 1>')
+        if (InputRouting.settingsListenForInput):
+            InputRouting.settingsListenForInput.listenButton.config(relief='raised')
+        InputRouting.bindListenCancelSafe()
     def bindListenCancelSafe():
-        inputRouting.expectedType=None
-        inputRouting.settingsListenForInput = None
+        InputRouting.expectedType=None
+        InputRouting.settingsListenForInput = None

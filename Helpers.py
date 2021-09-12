@@ -4,7 +4,7 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 
-VersionNumber = '0.60.0' #previous: 0.59.2
+versionNumber = '0.60.0' #previous: 0.59.2
 
 class deltaTime():
     lastTime=0
@@ -20,11 +20,6 @@ class Assets():
             return os.path.join(sys._MEIPASS, 'Assets', asset)
         else:
             return os.path.join('Assets', asset)
-
-class controller():
-    #easy link to get the current CameraController instance
-    #so classes can refer back to CameraController without having to deal with importing it
-    current=None
 
 class controlDirect():
     def __init__(self, command=None, delay=.1):

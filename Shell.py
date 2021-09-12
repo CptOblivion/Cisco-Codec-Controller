@@ -1,9 +1,9 @@
 import paramiko
 import re
 import debug
-from Camera import *
-from Settings import *
-from UI import *
+import camera as c
+import settings as s
+import ui
 
 class Shell():
     StartPhraseCamera = ' Camera '
@@ -37,7 +37,7 @@ class Shell():
             #TODO: feedback in main window
             print('\n\nusername or password mismatch!')
         except paramiko.ssh_exception.NoValidConnectionsError:
-            print('\n\ninvalid connection at address ',Settings.config['Startup']['IPADDRESS'])
+            print('\n\ninvalid connection at address ',s.Settings.config['Startup']['IPADDRESS'])
         except TimeoutError:
             print('\n\nSSH timeout! No device found.')
         except paramiko.ssh_exception.SSHException:
@@ -62,7 +62,7 @@ class Shell():
     def checkResponses(self):
         if (self.actualShell.recv_ready()):
             out=self.actualShell.recv(9999).decode('ascii')
-            #if (Settings.printVerbose.get()):debug.printCodec('vvvv')
+            #if (s.Settings.printVerbose.get()):debug.printCodec('vvvv')
             Responses = out.splitlines()
 
 
@@ -147,9 +147,9 @@ class Shell():
                             if (SplitString[i] == 'PresetListResult' and SplitString[i+1] == 'Preset'):
                                 PresetIndex = int(SplitString[i+2])
                                 if (self.controller.CameraPresets[PresetIndex] == None):
-                                    self.controller.CameraPresets[PresetIndex] = CameraPresetPanel(
+                                    self.controller.CameraPresets[PresetIndex] = ui.CameraPresetPanel(
                                         self.controller.Frame_PresetsContainer.contents, PresetIndex)
-                                    debug.print('added preset at index ' + str(PresetIndex))
+                                    debug.log('added preset at index ' + str(PresetIndex))
                                 i+=2
                             elif (SplitString[i] == 'Name:'):
                                 nameString = SplitString[i+1]
@@ -159,17 +159,17 @@ class Shell():
                                     i+= 1
                                 self.controller.CameraPresets[PresetIndex].setContents(
                                     name = nameString[1:len(nameString)-1]) #trim quotes
-                                debug.print('added name "' + self.controller.CameraPresets[PresetIndex].name
+                                debug.log('added name "' + self.controller.CameraPresets[PresetIndex].name
                                             + '" at index ' + str(PresetIndex))
                                 i+=1
                             elif (SplitString[i] == 'CameraId:'):
                                 self.controller.CameraPresets[PresetIndex].setContents(cameraId = int(SplitString[i+1]))
-                                debug.print('added cameraId ' + str(self.controller.CameraPresets[PresetIndex].cameraId)
+                                debug.log('added cameraId ' + str(self.controller.CameraPresets[PresetIndex].cameraId)
                                             + ' at index ' + str(PresetIndex))
                                 i+=1
                             elif (SplitString[i] == 'PresetId:'):
                                 self.controller.CameraPresets[PresetIndex].setContents(presetId = int(SplitString[i+1]))
-                                debug.print('added Id ' + str(self.controller.CameraPresets[PresetIndex].presetId)
+                                debug.log('added Id ' + str(self.controller.CameraPresets[PresetIndex].presetId)
                                             + ' at index ' + str(PresetIndex))
                                 i+=1
                             i+=1
@@ -179,7 +179,7 @@ class Shell():
                             iStart=ResponseLine.find('Preset ')+7
                             iEnd=ResponseLine.find(' Defined')
                             presetIndex=int(ResponseLine[iStart:iEnd])
-                            self.controller.CamerasPresets[presetIndex]=CameraPresetPanel(
+                            self.controller.CamerasPresets[presetIndex]=ui.CameraPresetPanel(
                                 self.controller.Frame_PresetsContainer.contents, presetIndex, cameraId=0)
                             self.controller.shell.send(
                                 'xStatus Preset '+str(presetIndex)+' Description\n')
@@ -205,7 +205,7 @@ class Shell():
                         if (debug.forceCameraConnection and (2 <= cameraNumber <= 3)): boolConnected = True
 
                         self.controller.CameraAvailable(cameraNumber, boolConnected)
-                        if (Camera.selected is None):
+                        if (c.Camera.selected is None):
                             self.controller.cameras[cameraNumber].select()
-                        debug.print('Camera ' + str(cameraNumber) + ' Status: ' + str(boolConnected))
-            #if (Settings.printVerbose.get()):debug.printCodec('^^^^')
+                        debug.log('Camera ' + str(cameraNumber) + ' Status: ' + str(boolConnected))
+            #if (s.Settings.printVerbose.get()):debug.printCodec('^^^^')
