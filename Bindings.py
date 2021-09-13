@@ -4,6 +4,8 @@ import math
 import main
 import pygame
 import settings as s
+import camera
+import ui
 
 class _BindingBase_():
     def __init__(self, command):
@@ -27,44 +29,69 @@ class BindingMidi(_BindingBase_):
     deviceOutIndex=None
     deviceName = None
     deviceNamesClean = []
+    activeIns={}
+    activeOuts={}
 
-    def refreshDevices(makeDropdown=None):
+    def refreshDevices(makeDropdown=None, select=True, save=True):
         BindingMidi.deviceName = tk.StringVar(main.current.window)
         #pass in a parent object to makeDropdown to use it
         BindingMidi.deviceNamesIn.clear()
         BindingMidi.deviceNamesOut.clear()
         BindingMidi.deviceNamesClean.clear()
-        for i in range(pygame.midi.get_count()):
-            info = pygame.midi.get_device_info(i)
-            name=str(info[1], 'utf-8')
-            if (info[2]):
-                BindingMidi.deviceNamesIn.append(name)
-                BindingMidi.deviceNamesClean.append(name)
-                BindingMidi.deviceNamesOut.append(None)
+        count=pygame.midi.get_count()
+        if (count):
+            for i in range(count):
+                info = pygame.midi.get_device_info(i)
+                name=str(info[1], 'utf-8')
+                if (info[2]):
+                    BindingMidi.deviceNamesIn.append(name)
+                    BindingMidi.deviceNamesClean.append(name)
+                    BindingMidi.deviceNamesOut.append(None)
+                else:
+                    BindingMidi.deviceNamesIn.append(None)
+                    BindingMidi.deviceNamesOut.append(name)
+            if (s.Settings.config['Startup']['LastMidiDevice'] in BindingMidi.deviceNamesIn):
+                BindingMidi.deviceName.set(s.Settings.config['Startup']['LastMidiDevice'])
             else:
-                BindingMidi.deviceNamesIn.append(None)
-                BindingMidi.deviceNamesOut.append(name)
-        if (s.Settings.config['Startup']['LastMidiDevice'] in BindingMidi.deviceNamesIn):
-            BindingMidi.deviceName.set(s.Settings.config['Startup']['LastMidiDevice'])
-        else:
-            BindingMidi.deviceName.set(BindingMidi.deviceNamesClean[0])
-        BindingMidi.selectDevice(BindingMidi.deviceName.get())
-        if (makeDropdown): return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
-                                                *BindingMidi.deviceNamesClean, command=BindingMidi.selectDevice)
-
-    def selectDevice(name):
+                BindingMidi.deviceName.set(BindingMidi.deviceNamesClean[0])
+            BindingMidi.selectDevice(BindingMidi.deviceName.get(), select, False)
+            if (makeDropdown):
+                return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
+                                     *BindingMidi.deviceNamesClean, command=lambda name,
+                                     select=select, save=save: BindingMidi.selectDevice(name, select,save))
+    def applyFeedback(state):
+        if (camera.Camera.selected and camera.Camera.selected.triggerBinding):
+            camera.Camera.selected.triggerBinding.triggerFeedback(state)
+        for i in range(8):
+            if (ui.CameraPresetPanel.lastTriggerBinding[i]):
+                ui.CameraPresetPanel.lastTriggerBinding[i].triggerBinding.triggerFeedback(True)
+    def selectDevice(name, activate, save):
         num = BindingMidi.deviceNamesIn.index(name)
         s.Settings.config['Startup']['LastMidiDevice'] = name
-        if (BindingMidi.deviceIn): BindingMidi.deviceIn.close()
-        if (BindingMidi.deviceOut):
+        if (save):s.Settings.SaveConfig()
+        #if (BindingMidi.deviceIn):
+        #    print(BindingMidi.deviceIn)
+        #    BindingMidi.deviceIn.close()
+        #    BindingMidi.deviceIn = None
+        #if (BindingMidi.deviceOut):
+        #    BindingMidi.clearFeedback()
+        #    BindingMidi.deviceOut.close()
+        #    BindingMidi.deviceOut=None
+
+        if (activate):
             BindingMidi.clearFeedback()
-            BindingMidi.deviceOut.close()
-        BindingMidi.deviceIn=pygame.midi.Input(num)
-        #name = BindingMidi.deviceNamesIn[num]
-        if (name in BindingMidi.deviceNamesOut):
-            BindingMidi.deviceOutIndex = BindingMidi.deviceNamesOut.index(name)
-            BindingMidi.deviceOut = pygame.midi.Output(BindingMidi.deviceOutIndex)
-            BindingMidi.clearFeedback()
+            if (not name in BindingMidi.activeIns):
+                print('adding ', name,' to devices, list is now ',BindingMidi.activeIns)
+                BindingMidi.activeIns[name] = pygame.midi.Input(num)
+            BindingMidi.deviceIn = BindingMidi.activeIns[name]
+            #name = BindingMidi.deviceNamesIn[num]
+            if (name in BindingMidi.deviceNamesOut):
+                if (not name in BindingMidi.activeOuts):
+                    BindingMidi.activeOuts[name] = pygame.midi.Output(
+                        BindingMidi.deviceNamesOut.index(name))
+                BindingMidi.deviceOut = BindingMidi.activeOuts[name]
+                BindingMidi.clearFeedback()
+                BindingMidi.applyFeedback(True)
 
         else: BindingMidi.deviceOut=None
     def __init__(self, midiChannel,inputNumber, command, subdevice, threshold=None):
@@ -84,6 +111,7 @@ class BindingMidi(_BindingBase_):
             if (state): vel = 63
             else: vel=0
             if (self.subdevice=='note'):
+                #TODO: catch 'Host Error' for midi control disconnect, run refreshDevices
                 BindingMidi.deviceOut.note_on(self.inputNumber, velocity=vel,
                                 channel=self.midiChannel)
             else:
@@ -92,14 +120,12 @@ class BindingMidi(_BindingBase_):
         return None #no dice
     def clearFeedback():
         if (BindingMidi.deviceOut):
-            if ('Launchpad Mini' in BindingMidi.deviceNamesOut[BindingMidi.deviceOutIndex]):
+            BindingMidi.applyFeedback(False)
+            if ('Launchpad Mini' in BindingMidi.deviceName.get()):
+                print('clearing')
                 BindingMidi.deviceOut.write_short(0xb0, 00,00) #this should clear the pad
                 #for i in range(121):
                 #    BindingMidi.deviceOut.note_on(i, velocity=0, channel=0)
-
-    #old helper function, probably safe to delete
-    #def getMidiName(deviceIndex):
-    #    return str(pygame.midi.get_device_info(deviceIndex)[1], 'utf-8')
 
 class BindingControllerButton(_BindingBase_):
     def __init__(self, command):

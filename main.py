@@ -490,7 +490,8 @@ class Main():
 
     def PopulateButtons(self):
         Frame_Main = tk.Frame(self.window)
-
+        bindings.BindingMidi.refreshDevices()
+        bindings.BindingMidi.clearFeedback()
         #TODO: find better alternative than 'if True:' to allow indentation for organization of UI code
         if True:
             self.Frame_CameraList = tk.Frame(Frame_Main, relief='sunken', borderwidth=2)
@@ -810,10 +811,13 @@ class Main():
 
             debugToggleFrame=tk.Frame(self.SettingsMenu)
             if True:
+                bindings.BindingMidi.refreshDevices(makeDropdown=debugToggleFrame).pack(side='left')
                 tk.Checkbutton(debugToggleFrame, text='print verbose debug',
-                               variable=debug.printVerbose, command=s.Settings.toggleVerboseDebugPrints).pack(side='left')
+                               variable=debug.printVerbose, command=s.Settings.toggleVerboseDebugPrints
+                               ).pack(side='left')
                 tk.Checkbutton(debugToggleFrame, text='mute codec responses',
-                               variable=debug.muteCodecResponse, command=s.Settings.toggleMuteCodecPrints).pack(side='left')
+                               variable=debug.muteCodecResponse, command=s.Settings.toggleMuteCodecPrints
+                               ).pack(side='left')
                 
             s.Settings.buildBindingsFrame()
 
@@ -823,7 +827,8 @@ class Main():
                 s.Settings.saveButton= tk.Button(frameFooter, text='save', command=s.Settings.SaveBindings)
                 s.Settings.saveButton.pack(side='right')
                 s.Settings.unsavedChangesWarning=tk.Label(frameFooter, text='Unsaved Changes!')
-                tk.Button(frameFooter, text='reset bindings', command=s.Settings.resetBindingsButton).pack(side='left')
+                tk.Button(frameFooter, text='reset bindings', command=s.Settings.resetBindingsButton
+                          ).pack(side='left')
             settingsTitle = tk.Label(self.SettingsMenu, text='Settings')
             settingsTitle.pack()
             settingsTitle.bind('<Destroy>', self.settingsMenuClosed)
@@ -848,7 +853,8 @@ class Main():
                 self.shell=debug.DummySSH()
                 connected=True
             else:
-                print('connecting to ' + s.Settings.config['Startup']['USERNAME'] + '@' + s.Settings.config['Startup']['IPADDRESS'])
+                print('connecting to ' + s.Settings.config['Startup']['USERNAME'] + '@' + \
+                    s.Settings.config['Startup']['IPADDRESS'])
                 connected=shell.Shell.connect(hostname=s.Settings.config['Startup']['IPADDRESS'],
                                      username=s.Settings.config['Startup']['USERNAME'],
                                      password=s.Settings.config['Startup']['PASSWORD'])
@@ -859,7 +865,8 @@ class Main():
                             time.sleep(1)
                     out = self.shell.recv().decode('ascii')
                     debug.printCodec(out)
-                    #TODO: login message might come in several messages, keep checking for a match for a second or so if none is found
+                    #TODO: login message might come in several messages, keep checking for a match
+                    #   for a second or so if none is found
                     #TODO: also, check if codec login message is different on various firmwares
                     #TODO: also also, add override option in settings
 
@@ -924,7 +931,7 @@ class Main():
             PasswordFrame.pack(pady=self.PadInt)
             EnterButton.pack(pady=self.PadInt)
             tk.Label(StartFrame, text='Version no. ' + versionNumber).pack(pady=self.PadInt)
-            bindings.BindingMidi.refreshDevices(makeDropdown=StartFrame).pack()
+            bindings.BindingMidi.refreshDevices(makeDropdown=StartFrame, select=False, save=False).pack()
             tk.Button(StartFrame, text='Settings', command=self.OpenSettingsMenu).pack()
 
         StartFrame.pack(padx=15, pady=15)
@@ -984,7 +991,8 @@ class Main():
             changedLast=self.inputDevicesControllersLastVals['axis'][a]
             changed = changedButton = value != changedLast
 
-            if (value != 0 and changedLast != 0): changedButton=False #if we were not at rest and we still aren't, the button is still pressed
+            #if we were not at rest and we still aren't, the button is still pressed
+            if (value != 0 and changedLast != 0): changedButton=False 
             #TODO: check if we crossed zero?
 
             self.inputDevicesControllersLastVals['axis'][a] = value
@@ -1066,7 +1074,9 @@ class Main():
                                 s.InputRouting.bindCommand('controller', 'hat', 'button', (h, self.hatBoundVal[h]))
                                 self.hatBoundVal[h] = None
                     else:
-                        #TODO: some filtering here similar to the above, but with a time delay instead of triggering on release, so diagonals can be hit and released without also triggering one of the cardinals it contains
+                        #TODO: some filtering here similar to the above, but with a time delay
+                        #   instead of triggering on release, so diagonals can be hit and released
+                        #   without also triggering one of the cardinals it contains
                         if (lastVal is not None and s.Settings.commandBinds['controller']['hat'][h][lastVal]):
                             s.Settings.commandBinds['controller']['hat'][h][lastVal].callCommand(False)
                         if (hat is not None and s.Settings.commandBinds['controller']['hat'][h][hat]):
@@ -1161,3 +1171,6 @@ class Main():
             self.shell.checkResponses()
         
         self.updateDirectValues()
+
+    def onQuit():
+        bindings.BindingMidi.clearFeedback()

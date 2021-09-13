@@ -75,6 +75,7 @@ class Settings():
         Settings.initializeSettings()
 
     def SaveConfig():
+        debug.log('saving')
         with open(Settings.iniFilename, 'w') as configfile:
             Settings.config.write(configfile)
             configfile.close()

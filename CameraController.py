@@ -14,11 +14,12 @@ if __name__ == '__main__':
         #   * catch all exceptions
         #   * write them to the console and a log file
         #   * exit properly so pyinstaller can clean up temp files
-        current = Main()
+        current = main.Main()
         while True:
             try:
                 current.main()
             except tk.TclError:
+                main.Main.onQuit()
                 sys.exit('Window closed, quitting')
             except:
                 debug.writeErrorLog()
