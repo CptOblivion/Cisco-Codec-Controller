@@ -59,6 +59,8 @@ class BindingMidi(_BindingBase_):
                 return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
                                      *BindingMidi.deviceNamesClean, command=lambda name,
                                      select=select, save=save: BindingMidi.selectDevice(name, select,save))
+        if (makeDropdown):
+            return  tk.Label(makeDropdown, text='No midi devices')
     def applyFeedback(state):
         if (camera.Camera.selected and camera.Camera.selected.triggerBinding):
             camera.Camera.selected.triggerBinding.triggerFeedback(state)
