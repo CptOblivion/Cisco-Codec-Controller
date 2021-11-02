@@ -582,6 +582,7 @@ class ControlBindPresetPanel(ControlBindPanel):
 
 class CameraPresetPanel(tk.Frame):
     lastTriggerBinding=[None,None,None,None,None,None,None,None]
+    activePresets=[None,None,None,None,None,None,None,None]
     controller=None
     def __init__(self, parent, index, cameraId=None, *args, **options):
         tk.Frame.__init__(self, parent, relief='ridge', borderwidth=2, *args, **options)
@@ -655,6 +656,7 @@ class CameraPresetPanel(tk.Frame):
         self.updateTriggerBinding()
 
     def saveToPreset(self):
+        self.triggerFeedback()
         if (self.cameraId):
             main.current.shell.send('xCommand Camera Preset Store '
                         + 'PresetId: ' + str(self.presetId)
@@ -666,7 +668,6 @@ class CameraPresetPanel(tk.Frame):
                 self.name= self.presetNameEntry.get()
             main.current.shell.send('xCommand Preset Store PresetId: '
                                           + str(self.presetId) + ' Type:Camera Description: "'+self.name+'"\n')
-            #TODO: write "all cameras" preset
 
     def validatePresetName(newValue):
         return not ' ' in newValue
@@ -713,17 +714,23 @@ class CameraPresetPanel(tk.Frame):
                                           ' ListPosition: '+ str(self.index) +'\n')
 
     def activatePreset(self):
+        self.triggerFeedback()
+        if (self.cameraId):
+            main.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
+        else:
+            main.current.shell.send('xCommand Preset Activate PresetID: ' + str(self.presetId)+'\n')
+
+    def triggerFeedback(self):
+        #TODO: track the last trigger in each column, call lastTrigger.triggerBinding.triggerFeedback(False)
         if (CameraPresetPanel.lastTriggerBinding[self.cameraId]):
             CameraPresetPanel.lastTriggerBinding[self.cameraId].triggerBinding.triggerFeedback(False)
         if (self.triggerBinding):
             self.triggerBinding.triggerFeedback(True)
             CameraPresetPanel.lastTriggerBinding[self.cameraId] = self
-        else: CameraPresetPanel.lastTriggerBinding[self.cameraId] = None
-        #TODO: track the last trigger in each column, call lastTrigger.triggerBinding.triggerFeedback(False)
-        if (self.cameraId):
-            main.current.shell.send('xCommand Camera Preset Activate PresetID: ' + str(self.presetId)+'\n')
+            CameraPresetPanel.activePresets[self.cameraId] = self.name
         else:
-            main.current.shell.send('xCommand Preset Activate PresetID: ' + str(self.presetId)+'\n')
+            CameraPresetPanel.lastTriggerBinding[self.cameraId] = None
+            CameraPresetPanel.activePresets[self.cameraId] = None
 
 
     def SetEditState(self, unlock):
@@ -773,6 +780,9 @@ class CameraPresetPanel(tk.Frame):
             name=name.replace(' ','_')
             self.name=name
         self.updateContents()
+        if (self.presetId is not None and self.name is not None and
+            CameraPresetPanel.activePresets[self.cameraId] == self.name):
+            self.triggerFeedback()
 
 class ConfigSlider(tk.Frame):
     def __init__(self, parent, command=None, from_=0, to_=1):
