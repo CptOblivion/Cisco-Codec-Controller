@@ -39,7 +39,7 @@ class Main():
         self.ZoomSpeed = tk.IntVar() #1-15
         self.PanSpeed.set(1)
         self.TiltSpeed.set(1)
-        self.ZoomSpeed.set(0)
+        self.ZoomSpeed.set(15)
         self.CameraCount = 0
         self.cameras=[None, c.Camera(1), c.Camera(2), c.Camera(3), c.Camera(4), c.Camera(5), c.Camera(6), c.Camera(7)]
 
