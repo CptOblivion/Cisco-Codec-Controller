@@ -14,6 +14,6 @@
 - Download the latest exe, and run it
 ### Other
 - Clone the repo
-- `pip install pygame`
-- `pip install tk`
-- `python cameracontroller.py`
+- `pip install -r requirements.txt`
+- `python cameracontroller.py` (or open cameracontroller.py from your file browser of choice)
+  - Command may be `py` or `python3` instead of `python`, depending on your python install
