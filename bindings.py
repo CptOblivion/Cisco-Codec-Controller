@@ -52,13 +52,14 @@ class BindingMidi(_BindingBase_):
                     BindingMidi.deviceNamesOut.append(name)
             if (s.Settings.config['Startup']['LastMidiDevice'] in BindingMidi.deviceNamesIn):
                 BindingMidi.deviceName.set(s.Settings.config['Startup']['LastMidiDevice'])
-            else:
+            elif (len(BindingMidi.deviceNamesClean) > 0):
                 BindingMidi.deviceName.set(BindingMidi.deviceNamesClean[0])
-            BindingMidi.selectDevice(BindingMidi.deviceName.get(), select, False)
-            if (makeDropdown):
-                return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
-                                     *BindingMidi.deviceNamesClean, command=lambda name,
-                                     select=select, save=save: BindingMidi.selectDevice(name, select,save))
+            if (len(BindingMidi.deviceNamesClean) > 0):
+                BindingMidi.selectDevice(BindingMidi.deviceName.get(), select, False)
+                if (makeDropdown):
+                    return tk.OptionMenu(makeDropdown, BindingMidi.deviceName,
+                                        *BindingMidi.deviceNamesClean, command=lambda name,
+                                        select=select, save=save: BindingMidi.selectDevice(name, select,save))
         if (makeDropdown):
             return  tk.Label(makeDropdown, text='No midi devices')
     def applyFeedback(state):
@@ -149,7 +150,7 @@ class Bindables():
     PresetWrite=False
 
     midiIOMapping={}
-    
+
     def _CameraRamp_(value, x, y):
         if (value): main.current.StartMove(main.current.PanSpeed.get()*x,main.current.TiltSpeed.get()*y)
         else: main.current.StopMove(None)
@@ -189,7 +190,7 @@ class Bindables():
         else: main.current.StopFocus(None)
     def bothRefreshPosition(binding, value):
         if (main.current.init and value): main.current.UpdateCameraDetails()
-    
+
     def _ProcessAxis_(value):
         flip = 1
         if (value < 0): flip=-1
@@ -315,12 +316,12 @@ class Bindables():
                         triggered=True
                         break
 
-    
+
     bindablePresets=[]
 
     #append this to the beginning of a key to mark that entry as a category rather than a proper entry
     #the contents of the dictionary entry should be the name of the last function in the category
-    bindingCategory = '__CATEGORY__' 
+    bindingCategory = '__CATEGORY__'
 
 
     bindingPresets=bindingCategory+'activate presets' #special category entry for camera presets (processed uniquely)
